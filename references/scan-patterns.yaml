@@ -1,0 +1,336 @@
+# Scan patterns for HECVAT repository assessment
+# Structured for programmatic iteration by assessment engines and AI agents
+
+scan_strategy:
+  description: "Two-pass scan: file discovery then content analysis"
+  pass_1: "File discovery via Glob to build inventory by type"
+  pass_2: "Content analysis via Grep for category-specific patterns"
+  priority: "Breadth over depth — cover all categories before deep-diving"
+
+# File discovery patterns - Run these Glob patterns first to map the repo structure
+file_discovery:
+  dependencies:
+    - "**/package.json"
+    - "**/requirements.txt"
+    - "**/Pipfile"
+    - "**/pyproject.toml"
+    - "**/Gemfile"
+    - "**/go.mod"
+    - "**/pom.xml"
+    - "**/build.gradle"
+    - "**/Cargo.toml"
+
+  config:
+    - "**/.env*"
+    - "**/config/**"
+    - "**/settings.*"
+    - "**/*.config.*"
+    - "**/*.yml"
+    - "**/*.yaml"
+    - "**/*.toml"
+
+  ci_cd:
+    - "**/.github/workflows/**"
+    - "**/.gitlab-ci.yml"
+    - "**/Jenkinsfile"
+    - "**/azure-pipelines.yml"
+    - "**/Dockerfile*"
+    - "**/docker-compose*"
+    - "**/.dockerignore"
+
+  iac:
+    - "**/terraform/**"
+    - "**/*.tf"
+    - "**/cloudformation/**"
+    - "**/pulumi/**"
+    - "**/cdk/**"
+    - "**/ansible/**"
+    - "**/helm/**"
+    - "**/k8s/**"
+    - "**/kubernetes/**"
+
+  security:
+    - "**/.snyk"
+    - "**/.trivyignore"
+    - "**/security.*"
+    - "**/.github/dependabot.yml"
+    - "**/SECURITY.md"
+    - "**/.bandit"
+    - "**/.eslintrc*"
+    - "**/.semgreprc"
+
+  docs:
+    - "**/docs/**"
+    - "**/README*"
+    - "**/ARCHITECTURE*"
+    - "**/CONTRIBUTING*"
+    - "**/API*"
+    - "**/*.api.*"
+    - "**/openapi.*"
+    - "**/swagger.*"
+
+  frontend:
+    - "**/src/**/*.tsx"
+    - "**/src/**/*.jsx"
+    - "**/src/**/*.vue"
+    - "**/src/**/*.svelte"
+    - "**/public/**"
+    - "**/static/**"
+
+# Category-specific grep patterns and key files to analyze
+categories:
+  AAAI:
+    name: "Authentication & Authorization"
+    grep_patterns:
+      auth_mechanisms:
+        - "oauth|oidc|saml|ldap|active.directory|sso"
+        - "jwt|jsonwebtoken|bearer.token|access.token|refresh.token"
+        - "passport|auth0|okta|cognito|firebase.auth|supabase.auth"
+
+      mfa:
+        - "mfa|multi.factor|two.factor|2fa|totp|authenticator"
+        - "webauthn|fido|u2f"
+
+      session_management:
+        - "session.timeout|session.expir|idle.timeout|max.age"
+        - "cookie.*(secure|httponly|samesite)"
+        - "express-session|flask-session|django.session"
+
+      account_management:
+        - "account.lockout|failed.attempts|brute.force|rate.limit"
+        - "password.policy|password.complex|bcrypt|argon2|scrypt|pbkdf2"
+
+    key_files:
+      - "Auth middleware/config files"
+      - "Login/registration handlers"
+      - "Session configuration"
+      - "User model/schema"
+
+  APPL:
+    name: "Application Security"
+    grep_patterns:
+      input_validation:
+        - "sanitiz|validat|escape|encode|purif"
+        - "zod|joi|yup|cerberus|marshmallow|pydantic"
+
+      sql_injection:
+        - "parameterized|prepared.statement|bind.param|placeholder"
+        - "raw.query|raw.sql|execute.*%s|execute.*\\+|string.format.*SELECT"
+
+      xss:
+        - "dangerouslySetInnerHTML|v-html|innerHTML|document\\.write"
+        - "DOMPurify|bleach|sanitize-html|helmet"
+
+      csrf:
+        - "csrf|xsrf|anti.forgery|csurf"
+        - "SameSite|double.submit"
+
+      security_headers:
+        - "helmet|Content-Security-Policy|X-Frame-Options|X-Content-Type"
+        - "Strict-Transport-Security|hsts|Referrer-Policy"
+
+      rate_limiting:
+        - "rate.limit|throttl|express-rate-limit|flask-limiter|django-ratelimit"
+
+      logging_monitoring:
+        - "winston|pino|bunyan|logging|log4j|serilog|structlog"
+        - "audit.log|security.log|access.log"
+
+  CHNG:
+    name: "Change Management"
+    grep_patterns:
+      testing_in_pipeline:
+        - "pytest|jest|mocha|rspec|junit|go.test|cargo.test"
+        - "coverage|codecov|coveralls|sonar"
+
+      code_review:
+        - "pull_request|merge_request|required_reviewers|branch_protection"
+        - "CODEOWNERS|required.approving.reviews"
+
+      deployment:
+        - "deploy|release|rollback|canary|blue.green|rolling.update"
+        - "staging|production|environment"
+
+    key_files:
+      - ".github/workflows/*.yml"
+      - ".gitlab-ci.yml"
+      - "Jenkinsfile"
+      - "CODEOWNERS"
+
+  DATA:
+    name: "Data Security"
+    grep_patterns:
+      encryption_at_rest:
+        - "encrypt|AES|KMS|vault|sealed.secret"
+        - "ENCRYPTION_KEY|DATA_ENCRYPTION|at.rest"
+
+      encryption_in_transit:
+        - "TLS|SSL|HTTPS|FORCE_SSL|SECURE_SSL_REDIRECT"
+        - "ssl_certificate|tls.crt|cert.pem"
+
+      key_management:
+        - "key.rotation|key.management|kms|vault"
+        - "AWS_KMS|AZURE_KEY_VAULT|GCP_KMS|HashiCorp"
+
+      data_classification:
+        - "PII|PHI|sensitive|confidential|restricted"
+        - "data.classification|data.label"
+
+      backup:
+        - "backup|snapshot|replication|disaster.recovery"
+        - "pg_dump|mongodump|mysqldump"
+
+  VULN:
+    name: "Vulnerability Management"
+    grep_patterns:
+      dependency_scanning:
+        - "dependabot|renovate|snyk|whitesource|mend"
+        - "npm.audit|pip.audit|bundle.audit|safety.check"
+
+      sast:
+        - "semgrep|sonarqube|sonar-scanner|codeql|bandit|brakeman"
+        - "eslint-plugin-security|gosec|clippy"
+
+      container_scanning:
+        - "trivy|grype|anchore|clair|twistlock|prisma.cloud"
+
+      penetration_testing:
+        - "pentest|penetration|security.assessment|bug.bounty"
+
+  ITAC:
+    name: "IT Accessibility"
+    grep_patterns:
+      wcag_aria:
+        - "aria-|role=|alt=|tabindex|focus.trap|skip.nav"
+        - "aria-label|aria-describedby|aria-live|aria-hidden"
+
+      accessibility_testing:
+        - "axe|pa11y|lighthouse|wave|jest-axe|cypress-axe"
+        - "a11y|accessibility|wcag"
+
+      accessibility_features:
+        - "prefers-reduced-motion|prefers-color-scheme|prefers-contrast"
+        - "focus-visible|:focus|screen.reader|sr-only"
+        - "lang=|xml:lang"
+
+  AI:
+    name: "AI/ML (AIML/AILM/AISC/AIGN/AIQU/DPAI)"
+    grep_patterns:
+      model_management:
+        - "model.version|model.registry|mlflow|wandb|neptune"
+        - "model.card|model.metadata"
+
+      training_evaluation:
+        - "training.data|test.data|evaluation|bias.test|fairness"
+        - "confusion.matrix|precision|recall|f1.score"
+
+      ai_governance:
+        - "ai.policy|responsible.ai|ethical.ai|ai.governance"
+        - "explainab|interpretab|transparency"
+
+      data_lineage:
+        - "data.lineage|data.provenance|dvc|data.version"
+        - "feature.store|feature.engineering"
+
+      llm_specific:
+        - "openai|anthropic|langchain|llama|huggingface"
+        - "prompt|embedding|vector.store|rag"
+        - "temperature|max_tokens|system.prompt"
+        - "guardrail|content.filter|moderation"
+
+  INFRASTRUCTURE:
+    name: "Infrastructure (DCTR/OPEM)"
+    grep_patterns:
+      cloud_provider:
+        - "aws|azure|gcp|cloud|iaas|paas|saas"
+        - "terraform|cloudformation|pulumi|cdk|bicep"
+
+      monitoring:
+        - "prometheus|grafana|datadog|newrelic|cloudwatch"
+        - "alert|monitor|uptime|health.check|readiness|liveness"
+
+      container_orchestration:
+        - "docker|kubernetes|k8s|helm|ecs|fargate"
+        - "pod.security|network.policy|resource.limit"
+
+  PRIVACY:
+    name: "Privacy & Compliance (HIPA/PCID/FIDP/PDAT/PPPR/DRPV)"
+    grep_patterns:
+      hipaa:
+        - "hipaa|phi|protected.health|baa|covered.entity"
+        - "hl7|fhir|dicom|medical.record"
+
+      ferpa:
+        - "ferpa|education.record|student.data|directory.information"
+
+      pci:
+        - "pci.dss|cardholder|credit.card|payment.card"
+        - "stripe|braintree|square|adyen|payment.gateway"
+        - "tokeniz|mask|redact"
+
+      gdpr_privacy:
+        - "gdpr|ccpa|privacy.policy|data.subject|consent"
+        - "right.to.delete|data.portability|data.retention"
+        - "cookie.consent|opt.in|opt.out"
+
+      audit_logging:
+        - "audit.trail|audit.log|immutable.log|tamper.proof"
+
+  THIRD_PARTY:
+    name: "Third Party (THRD/CONS)"
+    grep_patterns:
+      subprocessors_vendors:
+        - "vendor|subprocessor|third.party|external.service"
+        - "api.key|client.id|client.secret"
+
+      dependency_inventory:
+        - "package.json|requirements.txt|go.mod|Cargo.toml"
+        - "license|SPDX|SBOM|software.bill.of.materials"
+        - "cyclonedx|spdx-sbom"
+
+# Patch generation patterns for remediation recommendations
+patch_generation:
+  description: "When generating .patch files for non-compliant findings, follow these patterns"
+
+  patterns:
+    security_headers:
+      description: "Missing CSP, HSTS, etc."
+      actions:
+        - "Add middleware configuration for the detected framework"
+        - "Include all recommended headers, not just the missing one"
+
+    missing_dependency_scanning:
+      description: "No dependency scanning in CI/CD"
+      actions:
+        - "Add .github/dependabot.yml or equivalent"
+        - "Add scanning step to existing CI pipeline"
+
+    missing_input_validation:
+      description: "Input validation not detected"
+      actions:
+        - "Add validation library to dependencies"
+        - "Add validation middleware/decorators to affected routes"
+
+    missing_encryption_config:
+      description: "Encryption configuration missing"
+      actions:
+        - "Add TLS/SSL configuration"
+        - "Add encryption-at-rest settings for database connections"
+
+    missing_accessibility_attributes:
+      description: "Accessibility attributes missing"
+      actions:
+        - "Add aria labels to interactive elements"
+        - "Add alt text placeholders for images"
+        - "Add lang attribute to HTML root"
+
+  patch_format:
+    description: "Generate unified diff format compatible with git apply"
+    example: |
+      --- a/path/to/file
+      +++ b/path/to/file
+      @@ -line,count +line,count @@
+       context line
+      -removed line
+      +added line
+       context line

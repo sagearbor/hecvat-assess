@@ -1,0 +1,805 @@
+# Context-Aware Analysis Rules for HECVAT Assessment
+# Used during Step 4 (Assessment Mapping) to evaluate grep matches in context.
+# When a grep pattern matches, read the surrounding code and apply these rules
+# to determine if the match is a TRUE implementation or a FALSE positive.
+
+general_rules:
+  # Rules that apply across all categories
+  false_positive_indicators:
+    - pattern: "comment_only"
+      description: "Match appears only in code comments (// or # or /* */)"
+      action: "Downgrade confidence to Low. Note: 'Found in comments only — may indicate planned but not implemented feature.'"
+
+    - pattern: "todo_or_fixme"
+      description: "Match is in a TODO, FIXME, HACK, or XXX comment"
+      action: "Mark as No. Evidence: 'Referenced in TODO comment — not yet implemented.'"
+
+    - pattern: "test_only"
+      description: "Match appears only in test files (*_test.*, *.test.*, *.spec.*, tests/, __tests__/)"
+      action: "Downgrade to Medium confidence. Note: 'Found in tests only — verify production code also implements this.'"
+
+    - pattern: "documentation_only"
+      description: "Match appears only in markdown, README, or doc files"
+      action: "Downgrade to Low confidence. Note: 'Documented but not found in code — may be aspirational.'"
+
+    - pattern: "disabled_or_commented_out"
+      description: "Code containing the match is commented out or behind a false flag"
+      action: "Mark as No. Evidence: 'Implementation found but disabled/commented out.'"
+
+    - pattern: "import_without_usage"
+      description: "Library is imported but the security feature is never called"
+      action: "Downgrade to Low. Note: 'Library imported but feature not used in codebase.'"
+
+    - pattern: "example_or_sample"
+      description: "Match is in example/, sample/, demo/, or template/ directories"
+      action: "Ignore. Not production code."
+
+    - pattern: "node_modules_or_vendor"
+      description: "Match is in node_modules/, vendor/, .venv/, or other dependency directories"
+      action: "Ignore. Third-party code, not project implementation."
+
+    - pattern: "string_literal_only"
+      description: "Match is just a string literal with no associated logic (e.g., 'oauth' in error message)"
+      action: "Downgrade to Low. Note: 'Found as string literal only — no implementation logic.'"
+
+    - pattern: "variable_name_only"
+      description: "Match is only in variable/function names without actual implementation"
+      action: "Downgrade to Low. Note: 'Found in naming only — verify actual implementation exists.'"
+
+  true_positive_strengtheners:
+    - pattern: "config_file_active"
+      description: "Match is in an active config file (not .example, not .sample)"
+      action: "Strengthen to High confidence."
+
+    - pattern: "middleware_registration"
+      description: "Match is a middleware being registered/applied (app.use, @middleware, etc.)"
+      action: "Strengthen to High confidence — actively enforced."
+
+    - pattern: "ci_cd_step"
+      description: "Match is a step in CI/CD pipeline (not just a comment)"
+      action: "Strengthen to High confidence — automated enforcement."
+
+    - pattern: "env_var_with_value"
+      description: "Match is an environment variable set to an active value (not empty, not 'changeme')"
+      action: "High confidence. Note actual value found."
+
+    - pattern: "decorator_or_annotation"
+      description: "Match is a decorator/annotation applied to routes or handlers (@require_auth, @validate, etc.)"
+      action: "Strengthen to High confidence — declarative enforcement."
+
+    - pattern: "policy_enforcement"
+      description: "Match is in a policy file with enforcement logic (IAM policy, security policy, etc.)"
+      action: "Strengthen to High confidence if policy is referenced in code."
+
+    - pattern: "infrastructure_as_code"
+      description: "Match is in IaC files (terraform, cloudformation, k8s manifests) with actual configuration"
+      action: "Strengthen to High confidence for infrastructure-level controls."
+
+category_specific_rules:
+  AAAI:
+    name: "Authentication & Authorization"
+    context_rules:
+      - check: "Is auth middleware applied to routes or is it just defined?"
+        true_positive: "Middleware is registered with app.use(), @auth_required, or route guard"
+        false_positive: "Auth function exists but no routes use it"
+        guidance: "Search for middleware registration patterns after finding auth library"
+        examples:
+          good:
+            - "app.use(authMiddleware) — global application"
+            - "@require_auth decorator on route handlers"
+            - "Router.use(checkAuth) — router-level application"
+            - "beforeEach((to, from, next) => { if (!isAuthenticated()) ... }) — navigation guard"
+          bad:
+            - "function authMiddleware() { ... } with no calls to it"
+            - "Auth logic in a utility file but not imported anywhere"
+
+      - check: "Is MFA enforced or just available?"
+        true_positive: "MFA check in login flow, MFA required in config/policy"
+        false_positive: "MFA library imported but no enforcement in auth flow"
+        guidance: "Look for MFA verification in login/auth handlers, not just library presence"
+        examples:
+          good:
+            - "if (!user.mfaVerified) { return redirectToMFA() } in login handler"
+            - "REQUIRE_MFA=true in config with enforcement logic"
+            - "if (user.mfaEnabled) { await verifyMFAToken() } — conditional on user setting"
+          bad:
+            - "import speakeasy from 'speakeasy' with no calls"
+            - "MFA setup endpoint exists but login doesn't check it"
+
+      - check: "Is session timeout configured or just the library present?"
+        true_positive: "maxAge, timeout, or TTL set to a specific value in session config"
+        false_positive: "Session library imported with default settings (no explicit timeout)"
+        guidance: "Read session config values; defaults may not meet HECVAT requirements"
+        examples:
+          good:
+            - "session({ cookie: { maxAge: 1800000 } }) — 30 minute timeout"
+            - "SESSION_TIMEOUT=1800 in config with actual enforcement"
+            - "redis.setex(sessionKey, 3600, data) — explicit TTL"
+          bad:
+            - "session() with no options — using defaults"
+            - "SESSION_TIMEOUT defined but never used in session config"
+
+      - check: "Is password hashing applied to actual password storage?"
+        true_positive: "bcrypt/argon2 called in user registration or password change handler"
+        false_positive: "Hashing library imported but passwords stored as plaintext elsewhere"
+        guidance: "Trace password flow from input to storage"
+        examples:
+          good:
+            - "const hash = await bcrypt.hash(password, 10); user.password = hash;"
+            - "password = generate_password_hash(password) before db.save()"
+          bad:
+            - "user.password = request.body.password; await user.save()"
+            - "bcrypt imported but only used for API key hashing, not user passwords"
+
+      - check: "Is role-based access control (RBAC) enforced or just stored?"
+        true_positive: "Roles checked in authorization middleware or route guards"
+        false_positive: "User roles stored in database but never checked in access control logic"
+        guidance: "Find both role storage AND enforcement logic"
+        examples:
+          good:
+            - "if (!user.roles.includes('admin')) { return res.status(403) }"
+            - "@require_role('editor') decorator on sensitive routes"
+            - "Route middleware checks req.user.role before allowing access"
+          bad:
+            - "users table has role column but no code checks it"
+            - "Roles displayed in UI but backend doesn't enforce them"
+
+      - check: "Is OAuth/SSO integrated into actual login flow?"
+        true_positive: "OAuth routes handle callback and create authenticated sessions"
+        false_positive: "OAuth config exists but users still use password-only login"
+        guidance: "Verify OAuth success creates a valid session, not just a config file"
+        examples:
+          good:
+            - "OAuth callback sets session cookie or JWT after successful auth"
+            - "Login page shows 'Sign in with SSO' button that works"
+          bad:
+            - "OAuth config file present but no routes implement it"
+            - "OAuth routes exist but are commented out or not linked from UI"
+
+  APPL:
+    name: "Application Security"
+    context_rules:
+      - check: "Is input validation applied to user-facing endpoints?"
+        true_positive: "Validation schema applied as middleware or decorator on routes"
+        false_positive: "Validation library imported but not applied to any routes"
+        guidance: "Check route definitions for validation middleware/decorators"
+        examples:
+          good:
+            - "app.post('/api/user', validate(userSchema), handler)"
+            - "@validate(CreateUserDto) decorator on controller method"
+            - "Route has express-validator chain before handler"
+          bad:
+            - "Joi imported but routes accept req.body directly without validation"
+            - "Validation functions defined but never called in routes"
+
+      - check: "Are security headers served in production?"
+        true_positive: "Helmet/CSP middleware registered in main app setup, not wrapped in if(dev)"
+        false_positive: "Headers set in development config only, or commented out in production"
+        guidance: "Check if headers are behind environment conditionals"
+        examples:
+          good:
+            - "app.use(helmet()) in main.ts with no environment check"
+            - "Content-Security-Policy header set in production web server config"
+            - "Security headers in all environments (dev, staging, prod)"
+          bad:
+            - "if (process.env.NODE_ENV === 'development') { app.use(helmet()) }"
+            - "// app.use(helmet()) — commented out for debugging"
+            - "Helmet only in staging, removed from production config"
+
+      - check: "Is CSRF protection applied globally or just to some routes?"
+        true_positive: "CSRF middleware applied globally or to all state-changing routes"
+        false_positive: "CSRF protection on one form but not others, or disabled for API routes without alternative protection"
+        guidance: "Check if CSRF is global or per-route; API routes may use alternative (Bearer tokens)"
+        examples:
+          good:
+            - "app.use(csrf()) — global protection"
+            - "All POST/PUT/DELETE routes have CSRF middleware"
+            - "API routes skip CSRF but require Bearer token authentication"
+          bad:
+            - "CSRF only on /login but not on /update-profile"
+            - "CSRF disabled for API routes with no alternative auth"
+
+      - check: "Does rate limiting cover auth endpoints?"
+        true_positive: "Rate limiter specifically targets login, password reset, and API endpoints"
+        false_positive: "Generic rate limiter exists but auth endpoints are excluded"
+        guidance: "Verify rate limiting covers sensitive endpoints specifically"
+        examples:
+          good:
+            - "app.use('/api/auth', strictRateLimiter)"
+            - "loginLimiter applied to /login, /register, /password-reset"
+            - "Aggressive rate limit (5 req/min) on auth endpoints"
+          bad:
+            - "General rate limiter but auth routes are excluded"
+            - "Rate limiting only on API, not on auth forms"
+
+      - check: "Is SQL parameterization consistent?"
+        true_positive: "All database queries use parameterized queries or ORM"
+        false_positive: "ORM used for most queries but raw SQL with string concatenation in some places"
+        guidance: "Search for raw SQL patterns alongside ORM usage — one raw query negates ORM safety"
+        examples:
+          good:
+            - "db.query('SELECT * FROM users WHERE id = ?', [userId])"
+            - "User.findOne({ where: { id: userId } }) — ORM only"
+          bad:
+            - "db.query(`SELECT * FROM users WHERE name = '${userName}') — string interpolation"
+            - "ORM for most queries but raw SQL with concatenation in reports"
+
+      - check: "Is XSS protection implemented via output encoding or sanitization?"
+        true_positive: "Template engine auto-escapes by default, or explicit sanitization on user input"
+        false_positive: "Sanitization library imported but user content rendered with dangerouslySetInnerHTML"
+        guidance: "Check if user-generated content is escaped when rendered"
+        examples:
+          good:
+            - "React JSX (auto-escapes by default)"
+            - "DOMPurify.sanitize(userContent) before rendering HTML"
+            - "Template engine with auto-escape enabled"
+          bad:
+            - "<div dangerouslySetInnerHTML={{ __html: userInput }} />"
+            - "Template with auto-escape disabled: <%= raw userContent %>"
+
+      - check: "Is Content Security Policy (CSP) configured restrictively?"
+        true_positive: "CSP header with specific directives (not just default-src *)"
+        false_positive: "CSP header present but set to permissive values that don't block anything"
+        guidance: "Evaluate CSP directives for actual restriction"
+        examples:
+          good:
+            - "default-src 'self'; script-src 'self' cdn.example.com"
+            - "Nonces or hashes for inline scripts"
+          bad:
+            - "default-src * — allows everything"
+            - "script-src 'unsafe-inline' 'unsafe-eval' * — defeats purpose"
+
+  DATA:
+    name: "Data Security"
+    context_rules:
+      - check: "Is encryption at rest actually configured or just referenced?"
+        true_positive: "KMS key ID, encryption key config, or database encryption setting with actual values"
+        false_positive: "ENCRYPTION_KEY=changeme or ENCRYPTION_KEY= (empty) in .env.example"
+        guidance: "Check that encryption config has real values, not placeholders"
+        examples:
+          good:
+            - "ENCRYPTION_KEY_ID=arn:aws:kms:... in production config"
+            - "database.encrypted = true with actual key reference"
+            - "StorageEncrypted: true in RDS terraform config"
+          bad:
+            - "ENCRYPTION_KEY=changeme in .env.example (and no .env)"
+            - "# TODO: enable encryption comment"
+            - "Encryption mentioned in README but no config files"
+
+      - check: "Is TLS enforced or optional?"
+        true_positive: "FORCE_SSL=true, HSTS enabled, HTTP redirects to HTTPS"
+        false_positive: "HTTPS available but HTTP also works, no redirect"
+        guidance: "Check for both TLS availability AND enforcement (redirect, HSTS)"
+        examples:
+          good:
+            - "app.use(enforceHTTPS) middleware"
+            - "Strict-Transport-Security header set"
+            - "Load balancer redirects HTTP to HTTPS"
+          bad:
+            - "HTTPS works but HTTP doesn't redirect"
+            - "HSTS header only in staging, not production"
+
+      - check: "Are credentials properly managed?"
+        true_positive: "Secrets loaded from env vars, vault, or secrets manager"
+        false_positive: "Hardcoded credentials in source, even if in a 'config' file"
+        guidance: "Flag any hardcoded secrets as both a 'No' on data security AND a security vulnerability"
+        examples:
+          good:
+            - "const apiKey = process.env.API_KEY"
+            - "Secrets loaded from AWS Secrets Manager or Vault"
+            - "Credentials in .env (gitignored) referenced in code"
+          bad:
+            - "const apiKey = 'sk_live_abc123' hardcoded in source"
+            - "Database password in config.js committed to repo"
+            - "AWS credentials in source code"
+
+      - check: "Is sensitive data encrypted in database?"
+        true_positive: "Field-level encryption on PII (SSN, credit cards, etc.)"
+        false_positive: "Database has TLS transport but sensitive fields stored plaintext"
+        guidance: "Distinguish transport encryption (TLS) from storage encryption (field-level)"
+        examples:
+          good:
+            - "ssn = encrypt(ssn) before database insert"
+            - "Transparent data encryption (TDE) enabled on database"
+            - "Column-level encryption for sensitive fields"
+          bad:
+            - "SSL connection to database but plaintext column values"
+            - "Only password hashed, other PII in plaintext"
+
+      - check: "Is data retention policy enforced in code?"
+        true_positive: "Automated deletion jobs, TTL on records, or archive procedures"
+        false_positive: "Retention policy documented but no automated enforcement"
+        guidance: "Policy must be enforced via code/automation, not just documented"
+        examples:
+          good:
+            - "Cron job deletes records older than 90 days"
+            - "Database TTL: db.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 7776000 })"
+            - "Archive job moves old data to cold storage"
+          bad:
+            - "Retention policy in docs but no deletion code"
+            - "Manual process to delete old data (not automated)"
+
+      - check: "Are database backups encrypted?"
+        true_positive: "Backup encryption enabled in infrastructure config or backup tool"
+        false_positive: "Backups exist but encryption not mentioned"
+        guidance: "Check IaC files or backup service config for encryption settings"
+        examples:
+          good:
+            - "BackupEncryption: true in RDS config"
+            - "pg_dump piped to gpg encryption before storage"
+          bad:
+            - "Backup cron job with no encryption step"
+            - "Backups to S3 bucket without encryption"
+
+  VULN:
+    name: "Vulnerability Management"
+    context_rules:
+      - check: "Is dependency scanning automated or manual?"
+        true_positive: "Dependabot/Renovate configured, or audit step in CI pipeline"
+        false_positive: "npm audit mentioned in README but not in CI pipeline"
+        guidance: "Must be automated (CI/CD or bot) to count as 'Yes'"
+        examples:
+          good:
+            - "dependabot.yml or renovate.json in repo"
+            - "npm audit or safety check in CI workflow"
+            - "Snyk/WhiteSource integration active"
+          bad:
+            - "README says 'Run npm audit monthly' (manual process)"
+            - "Security scanning config exists but CI doesn't run it"
+
+      - check: "Does SAST run on every PR or just manually?"
+        true_positive: "SAST step in CI workflow triggered on pull_request events"
+        false_positive: "SAST config file exists but not referenced in CI pipeline"
+        guidance: "Verify SAST is triggered automatically, not just available"
+        examples:
+          good:
+            - "on: pull_request → SAST job in GitHub Actions"
+            - "Pre-merge hook runs semgrep or CodeQL"
+            - "SonarQube quality gate blocks merge on vulnerabilities"
+          bad:
+            - ".semgreprc exists but no CI job runs it"
+            - "SAST script exists but developer must run manually"
+
+      - check: "Are container images scanned for vulnerabilities?"
+        true_positive: "Trivy/Grype in CI, or registry scanning enabled"
+        false_positive: "Containers used but no scanning mentioned"
+        guidance: "Check for image scanning in build pipeline or registry settings"
+        examples:
+          good:
+            - "trivy image scan in Docker build CI step"
+            - "AWS ECR scan on push enabled"
+            - "Harbor registry with automatic scanning"
+          bad:
+            - "Docker images built but no scan step"
+            - "Scanning mentioned in docs but not in CI"
+
+      - check: "Is there a process for applying security patches?"
+        true_positive: "Documented SLA for patching, automated PR merging for security updates"
+        false_positive: "Dependencies updated but no prioritization for security patches"
+        guidance: "Look for security-specific update process, not just general dependency updates"
+        examples:
+          good:
+            - "Dependabot auto-merge for security updates"
+            - "SECURITY.md defines patching SLA (e.g., 7 days for critical)"
+            - "Security label on PRs with expedited review process"
+          bad:
+            - "Dependencies updated quarterly (no fast-track for security)"
+            - "No distinction between feature updates and security patches"
+
+      - check: "Is vulnerability disclosure process documented?"
+        true_positive: "SECURITY.md with contact info and response timeline"
+        false_positive: "Generic contact email in README but no security-specific process"
+        guidance: "Must have security-specific disclosure policy, not just general support contact"
+        examples:
+          good:
+            - "SECURITY.md with security@example.com and GPG key"
+            - "HackerOne or bug bounty program documented"
+            - "CVE assignment process documented"
+          bad:
+            - "Contact info@example.com for all inquiries"
+            - "No mention of vulnerability reporting process"
+
+  CHNG:
+    name: "Change Management"
+    context_rules:
+      - check: "Are tests actually running in CI or just defined?"
+        true_positive: "Test step in CI workflow with actual test command (pytest, jest, etc.)"
+        false_positive: "Test files exist but CI doesn't run them"
+        guidance: "Cross-reference test files with CI pipeline steps"
+        examples:
+          good:
+            - "npm test in CI workflow"
+            - "pytest in GitHub Actions with failure blocking merge"
+            - "Test coverage requirement enforced"
+          bad:
+            - "Test files exist but CI has no test step"
+            - "Test step commented out in CI config"
+            - "Tests run but failures don't block merge"
+
+      - check: "Is code review required or just encouraged?"
+        true_positive: "Branch protection requires approving reviews, CODEOWNERS file with * pattern"
+        false_positive: "CONTRIBUTING.md mentions code review but no branch protection"
+        guidance: "Branch protection config > documentation about process"
+        examples:
+          good:
+            - "Branch protection: required reviewers = 1+"
+            - "CODEOWNERS with * pattern (all changes need owner approval)"
+            - "PR template with review checklist"
+          bad:
+            - "README says 'Please get code reviewed' but no enforcement"
+            - "Branch protection exists but required reviewers = 0"
+
+      - check: "Is deployment approval required for production?"
+        true_positive: "Manual approval step in production deployment workflow"
+        false_positive: "Automated deploy to prod on every merge (no approval gate)"
+        guidance: "Production deployments should require human approval, not be fully automated"
+        examples:
+          good:
+            - "environment: production with required_reviewers in GitHub Actions"
+            - "Manual approval step in CD pipeline before prod deploy"
+            - "Deploy button in UI (not auto-deploy)"
+          bad:
+            - "Merge to main → auto-deploy to production with no approval"
+            - "Production deployment fully automated with no gate"
+
+      - check: "Are infrastructure changes tracked in version control?"
+        true_positive: "Terraform/CloudFormation in repo, infrastructure changes via PR"
+        false_positive: "Infrastructure configured manually via console (no IaC)"
+        guidance: "IaC in repo counts as Yes; manual console changes are No"
+        examples:
+          good:
+            - "terraform/ directory with .tf files"
+            - "CloudFormation templates in repo"
+            - "Kubernetes manifests in repo"
+          bad:
+            - "Infrastructure documented in wiki but not in code"
+            - "Manual AWS console configuration (no IaC)"
+
+      - check: "Is rollback procedure documented and tested?"
+        true_positive: "Rollback script/workflow exists, documented rollback process"
+        false_positive: "Deployment automation exists but no rollback plan"
+        guidance: "Deployment is incomplete without rollback capability"
+        examples:
+          good:
+            - "rollback.sh script in repo"
+            - "Previous deployment artifacts retained for rollback"
+            - "Blue/green or canary deployment (easy rollback)"
+          bad:
+            - "Deploy script exists but no rollback script"
+            - "Rollback is 'restore from backup' (slow, untested)"
+
+      - check: "Are database migrations versioned and reversible?"
+        true_positive: "Migration files with up/down methods, migration tool in use"
+        false_positive: "Schema changes applied manually via SQL scripts"
+        guidance: "Look for migration framework (Alembic, Flyway, Rails migrations)"
+        examples:
+          good:
+            - "migrations/ with numbered files and down() methods"
+            - "Flyway or Liquibase migration files"
+            - "Rails db:rollback capability"
+          bad:
+            - "Schema changes in SQL files applied manually"
+            - "Migrations exist but no down() method (irreversible)"
+
+  ITAC:
+    name: "IT Accessibility"
+    context_rules:
+      - check: "Are ARIA attributes used correctly?"
+        true_positive: "Semantic ARIA roles matching element purpose, aria-label on non-text elements"
+        false_positive: "aria-hidden='true' on everything (hiding content from screen readers)"
+        guidance: "Incorrect ARIA is worse than no ARIA — flag misuse as a concern"
+        examples:
+          good:
+            - "role='navigation' on <nav>"
+            - "aria-label='Search' on icon button with no text"
+            - "aria-describedby linking input to error message"
+          bad:
+            - "aria-hidden='true' on main content"
+            - "role='button' on actual <button> (redundant)"
+            - "ARIA attributes with no supporting code"
+
+      - check: "Is keyboard navigation fully supported?"
+        true_positive: "All interactive elements reachable via Tab, focus visible, Enter/Space work"
+        false_positive: "onClick on <div> with no tabindex or keyboard handler"
+        guidance: "Test for tabindex, onKeyDown handlers, and visible focus indicators"
+        examples:
+          good:
+            - "All buttons/links are native elements (inherent keyboard support)"
+            - "Custom controls have tabindex and onKeyDown handlers"
+            - "Focus outline visible (not outline: none)"
+          bad:
+            - "<div onClick={...}> with no tabindex (not keyboard accessible)"
+            - "outline: none without alternative focus indicator"
+            - "Modal trap focus not managed"
+
+      - check: "Is accessibility testing automated?"
+        true_positive: "axe or pa11y in test suite with assertions, runs in CI"
+        false_positive: "Lighthouse in CI but no a11y threshold (just generates report)"
+        guidance: "Must have assertions/thresholds, not just reporting"
+        examples:
+          good:
+            - "jest-axe with expect(container).toHaveNoViolations()"
+            - "pa11y-ci in CI with violation thresholds"
+            - "Cypress axe tests in E2E suite"
+          bad:
+            - "Lighthouse in CI but no failure on a11y score < threshold"
+            - "a11y tools mentioned in README but not in CI"
+
+      - check: "Are form inputs properly labeled?"
+        true_positive: "All inputs have associated <label> or aria-label"
+        false_positive: "Placeholder text used instead of label (bad practice)"
+        guidance: "Label must be associated (for attribute) or aria-label, not just placeholder"
+        examples:
+          good:
+            - "<label for='email'>Email</label><input id='email' />"
+            - "<input aria-label='Email address' /> (when visual label not desired)"
+          bad:
+            - "<input placeholder='Email' /> (placeholder is not a label)"
+            - "Label text visible but not associated with input"
+
+      - check: "Is color contrast sufficient?"
+        true_positive: "Color contrast checker in design system, WCAG AA+ contrast ratios"
+        false_positive: "Colors chosen arbitrarily with no contrast checking"
+        guidance: "Look for contrast checker in tooling or design tokens with verified contrast"
+        examples:
+          good:
+            - "Design tokens with documented contrast ratios (4.5:1+ for text)"
+            - "Stylelint plugin for contrast checking"
+            - "Automated contrast tests in CI"
+          bad:
+            - "No mention of contrast requirements"
+            - "Colors chosen without verification"
+
+      - check: "Are error messages accessible?"
+        true_positive: "Error messages linked to inputs via aria-describedby, role='alert' for live errors"
+        false_positive: "Error message displayed visually but not announced to screen readers"
+        guidance: "Error must be programmatically associated with input and announced"
+        examples:
+          good:
+            - "<input aria-describedby='email-error' /><span id='email-error' role='alert'>Invalid email</span>"
+            - "aria-invalid='true' on input with error"
+          bad:
+            - "Error message displayed nearby but not associated with input"
+            - "Error text color change only (not announced)"
+
+  BCDR:
+    name: "Business Continuity & Disaster Recovery"
+    context_rules:
+      - check: "Are backups automated and tested?"
+        true_positive: "Backup script in cron/scheduled job, restore test documentation or automation"
+        false_positive: "Backup mentioned in docs but no automation"
+        guidance: "Backup must be automated; bonus points for automated restore testing"
+        examples:
+          good:
+            - "Daily backup cron job in infrastructure code"
+            - "AWS Backup plan in terraform"
+            - "Restore test in CI (restore backup to staging)"
+          bad:
+            - "README says 'Backup database weekly' (manual)"
+            - "Backup script exists but not scheduled"
+
+      - check: "Is disaster recovery plan documented and tested?"
+        true_positive: "DR runbook with RTO/RPO defined, DR drill documented"
+        false_positive: "Backup exists but no recovery procedure"
+        guidance: "Must have documented recovery steps, not just backups"
+        examples:
+          good:
+            - "DISASTER_RECOVERY.md with step-by-step restore procedure"
+            - "RTO/RPO defined (e.g., RTO=4hrs, RPO=15min)"
+            - "DR test conducted quarterly (documented in issues/wiki)"
+          bad:
+            - "Backups exist but no one knows how to restore"
+            - "DR mentioned in compliance doc but no technical runbook"
+
+      - check: "Is infrastructure deployed across multiple availability zones?"
+        true_positive: "Multi-AZ deployment in IaC, load balancer across AZs"
+        false_positive: "Single-AZ deployment (no redundancy)"
+        guidance: "Check terraform/CloudFormation for multi-AZ configuration"
+        examples:
+          good:
+            - "RDS with multi_az = true"
+            - "Load balancer with subnets in multiple AZs"
+            - "Kubernetes nodes across AZs"
+          bad:
+            - "All resources in single AZ (no failover capability)"
+            - "Multi-AZ mentioned in docs but IaC shows single AZ"
+
+  PRIV:
+    name: "Privacy & Data Protection"
+    context_rules:
+      - check: "Is user data deletion implemented?"
+        true_positive: "API endpoint or admin function to delete user and associated data"
+        false_positive: "User can delete account but data remains in database"
+        guidance: "GDPR 'right to be forgotten' requires actual data deletion, not just account deactivation"
+        examples:
+          good:
+            - "DELETE /users/:id endpoint that cascades to related tables"
+            - "Admin function to purge user data (including backups reference)"
+            - "Soft delete with hard delete after retention period"
+          bad:
+            - "User account marked inactive but data retained indefinitely"
+            - "Account deletion doesn't remove user content/activity"
+
+      - check: "Is data export functionality available (data portability)?"
+        true_positive: "API endpoint to export user data in machine-readable format (JSON, CSV)"
+        false_positive: "No export feature, or export only available to admins"
+        guidance: "GDPR Article 20 requires user-initiated data export"
+        examples:
+          good:
+            - "GET /users/:id/export returns JSON of all user data"
+            - "Account settings page has 'Download my data' button"
+          bad:
+            - "No export functionality"
+            - "Data export requires contacting support (not self-service)"
+
+      - check: "Is consent tracking implemented?"
+        true_positive: "Consent records stored with timestamp and version, consent required before data processing"
+        false_positive: "Terms of service acceptance but no granular consent tracking"
+        guidance: "Look for consent management for cookies, marketing, data processing"
+        examples:
+          good:
+            - "user_consents table with consent_type, granted_at, version"
+            - "Cookie banner with granular consent options (not just 'Accept all')"
+            - "Consent checked before sending marketing emails"
+          bad:
+            - "Generic ToS acceptance only"
+            - "Cookies set before consent given"
+
+      - check: "Is PII access logged?"
+        true_positive: "Audit log for access to sensitive user data (who accessed what, when)"
+        false_positive: "General application logs but no PII access tracking"
+        guidance: "Compliance often requires audit trail for PII access"
+        examples:
+          good:
+            - "Audit log entry created when admin views user profile"
+            - "PII access logged with user ID, accessor ID, timestamp"
+          bad:
+            - "Application logs exist but don't track PII access specifically"
+            - "No audit trail for who accessed sensitive data"
+
+  NETW:
+    name: "Network Security"
+    context_rules:
+      - check: "Is network segmentation implemented?"
+        true_positive: "VPC with private/public subnets, security groups limiting access"
+        false_positive: "All resources in public subnet with permissive security groups"
+        guidance: "Check IaC for VPC structure and security group rules"
+        examples:
+          good:
+            - "Private subnets for databases, public for load balancers"
+            - "Security groups with least privilege (specific ports/sources)"
+            - "Network ACLs enforcing segmentation"
+          bad:
+            - "All resources in default VPC public subnet"
+            - "Security group allows 0.0.0.0/0 on all ports"
+
+      - check: "Is WAF configured?"
+        true_positive: "AWS WAF, Cloudflare, ModSecurity with active rules"
+        false_positive: "WAF mentioned but not configured or all rules disabled"
+        guidance: "WAF must have active rules, not just be provisioned"
+        examples:
+          good:
+            - "AWS WAF with managed rule groups attached to ALB"
+            - "Cloudflare proxy enabled with security rules"
+            - "ModSecurity with OWASP CRS rule set"
+          bad:
+            - "WAF resource exists but no rules attached"
+            - "WAF in detection-only mode (not blocking)"
+
+      - check: "Are API endpoints protected by authentication?"
+        true_positive: "API gateway with auth, or all routes require valid token"
+        false_positive: "Some API endpoints are public without auth"
+        guidance: "Check if all endpoints (except intentionally public ones) require auth"
+        examples:
+          good:
+            - "API Gateway with authorizer on all routes"
+            - "Express middleware requiring valid JWT on all /api/* routes"
+            - "Public endpoints explicitly listed, all others require auth"
+          bad:
+            - "Auth middleware on some routes but not all"
+            - "API endpoints accessible without any authentication"
+
+  MNTR:
+    name: "Monitoring & Logging"
+    context_rules:
+      - check: "Are security events logged?"
+        true_positive: "Logging for failed auth, privilege escalation, config changes"
+        false_positive: "Application logs exist but no security-specific events"
+        guidance: "Look for logging of authentication, authorization failures, security events"
+        examples:
+          good:
+            - "Failed login attempts logged with IP and timestamp"
+            - "Privilege escalation logged (user role changes)"
+            - "Security group changes logged (CloudTrail)"
+          bad:
+            - "Only HTTP access logs (no security event logging)"
+            - "Errors logged but not security-relevant events"
+
+      - check: "Are logs retained and protected?"
+        true_positive: "Log retention policy, logs in immutable storage or SIEM"
+        false_positive: "Logs written locally with no retention or protection"
+        guidance: "Logs should be centralized, retained per policy, and tamper-proof"
+        examples:
+          good:
+            - "Logs shipped to CloudWatch/Splunk/ELK with 90-day retention"
+            - "S3 bucket with object lock for log immutability"
+            - "SIEM integration with retention policy"
+          bad:
+            - "Logs in local files with rotation (easily deleted)"
+            - "No centralized logging (each server logs locally)"
+
+      - check: "Is alerting configured for security events?"
+        true_positive: "Alerts for failed auth spikes, unauthorized access, config changes"
+        false_positive: "Monitoring exists but no alerts configured"
+        guidance: "Monitoring without alerting is ineffective; must notify on anomalies"
+        examples:
+          good:
+            - "PagerDuty/Opsgenie alert on failed login rate > threshold"
+            - "Slack notification on IAM policy changes"
+            - "SIEM rules trigger alerts for suspicious activity"
+          bad:
+            - "Logs collected but no alerts configured"
+            - "Dashboards exist but no one monitors them"
+
+# How to apply these rules during assessment
+application_guidance:
+  workflow: |
+    1. Run grep patterns (from scan-patterns.yaml) to find potential matches
+    2. For each match, read 10-20 lines of surrounding context (use Read tool with offset)
+    3. Apply general_rules first to filter obvious false positives
+    4. Apply category_specific_rules for the relevant category
+    5. Assign confidence level based on analysis:
+       - High: True positive confirmed by context (e.g., middleware actively applied, config with real values)
+       - Medium: Likely true but some ambiguity (e.g., found in tests, or import but usage unclear)
+       - Low: Possible but needs manual verification (e.g., found in comments, or config with placeholders)
+    6. Include context analysis reasoning in the evidence field
+
+  evidence_format: |
+    [Confidence: High] CSRF protection enforced via helmet middleware.
+    Context: Middleware registered globally in app.ts:15 (app.use(helmet())).
+    Not behind environment conditional. Applied to all routes.
+
+  when_uncertain: |
+    If context analysis is ambiguous, default to the more conservative answer:
+    - If unsure whether a feature is implemented: answer "No" with Medium confidence and note "Possible but not confirmed"
+    - If unsure whether implementation is complete: answer "Yes" with Low confidence and note "Partial implementation found"
+    - Always note the uncertainty in the evidence field with specific reasons
+    - Recommend manual verification for Low confidence answers
+
+  reading_context: |
+    When reading context around grep matches:
+    - Read at least 10 lines before and after the match
+    - For config files: read the entire config block/section
+    - For middleware: search for where it's registered/applied (not just defined)
+    - For imports: search for actual usage of the imported feature
+    - For environment variables: check both definition and usage
+    - For CI/CD: verify the step is actually triggered, not just defined
+
+  multi_file_analysis: |
+    Some features require checking multiple files:
+    - Auth library imported in one file → check routes in another file for usage
+    - Middleware defined in one file → check app setup file for registration
+    - Environment variable used in code → check .env.example and deployment config
+    - Test files → check if tests are run in CI pipeline
+    If grep finds a match but implementation is incomplete (library but no usage),
+    mark as Low confidence and note what's missing.
+
+  confidence_calibration: |
+    High confidence (95%+ certain):
+      - Active middleware registration in production code
+      - Config file with real values (not placeholders) in production environment
+      - CI/CD step that runs automatically on trigger
+      - Infrastructure-as-code with deployed resources
+
+    Medium confidence (70-95% certain):
+      - Feature found in tests but production code unclear
+      - Library imported and some usage found, but coverage uncertain
+      - Config exists but unclear if it's the active production config
+      - Documentation matches code but manual verification recommended
+
+    Low confidence (<70% certain):
+      - Found only in comments, TODOs, or documentation
+      - Config with placeholder values (changeme, example, etc.)
+      - Library imported but no usage found
+      - Feature defined but not clear if it's applied/enforced
+      - Unclear if code is active or commented out / behind false flag
