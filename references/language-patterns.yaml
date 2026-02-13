@@ -1,0 +1,967 @@
+# Language and framework-specific detection patterns for HECVAT assessment
+# Supplements the generic patterns in scan-patterns.yaml
+# Used during Pass 2 (content analysis) after detecting the repo's tech stack
+
+# How to detect the primary language(s) of a repository
+language_detection:
+  # Check these files to determine primary languages
+  indicators:
+    javascript:
+      files: ["package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"]
+      extensions: [".js", ".mjs", ".cjs"]
+    typescript:
+      files: ["tsconfig.json", "package.json"]
+      extensions: [".ts", ".tsx"]
+    python:
+      files: ["requirements.txt", "Pipfile", "pyproject.toml", "setup.py", "setup.cfg"]
+      extensions: [".py"]
+    go:
+      files: ["go.mod", "go.sum"]
+      extensions: [".go"]
+    java:
+      files: ["pom.xml", "build.gradle", "build.gradle.kts"]
+      extensions: [".java"]
+    ruby:
+      files: ["Gemfile", "Gemfile.lock"]
+      extensions: [".rb"]
+    rust:
+      files: ["Cargo.toml", "Cargo.lock"]
+      extensions: [".rs"]
+    csharp:
+      files: ["*.csproj", "*.sln"]
+      extensions: [".cs"]
+    php:
+      files: ["composer.json", "composer.lock"]
+      extensions: [".php"]
+
+  # Detect frameworks from dependency files
+  framework_detection:
+    javascript:
+      express: ["express"]
+      nextjs: ["next"]
+      nestjs: ["@nestjs/core"]
+      fastify: ["fastify"]
+      koa: ["koa"]
+      hapi: ["@hapi/hapi"]
+    python:
+      django: ["django", "Django"]
+      flask: ["flask", "Flask"]
+      fastapi: ["fastapi"]
+      tornado: ["tornado"]
+      pyramid: ["pyramid"]
+    ruby:
+      rails: ["rails"]
+      sinatra: ["sinatra"]
+    go:
+      gin: ["github.com/gin-gonic/gin"]
+      echo: ["github.com/labstack/echo"]
+      fiber: ["github.com/gofiber/fiber"]
+    java:
+      spring: ["org.springframework"]
+      quarkus: ["io.quarkus"]
+    rust:
+      actix: ["actix-web"]
+      axum: ["axum"]
+      rocket: ["rocket"]
+    php:
+      laravel: ["laravel/framework"]
+      symfony: ["symfony/framework-bundle"]
+    csharp:
+      aspnet: ["Microsoft.AspNetCore"]
+
+# Language-specific patterns by HECVAT category
+# These supplement (don't replace) the generic patterns
+categories:
+  AAAI:
+    name: "Authentication & Authorization"
+    languages:
+      javascript:
+        auth_libraries:
+          - "passport"
+          - "passport-oauth2"
+          - "passport-saml"
+          - "passport-google-oauth20"
+          - "passport-openidconnect"
+          - "openid-client"
+          - "next-auth"
+          - "express-session"
+          - "jsonwebtoken"
+          - "@auth0/nextjs-auth0"
+          - "lucia"
+          - "jose"
+          - "oauth4webapi"
+          - "@clerk/nextjs"
+          - "kinde-auth-nextjs"
+        mfa_libraries:
+          - "speakeasy"
+          - "otplib"
+          - "@simplewebauthn/server"
+          - "node-2fa"
+        session_patterns:
+          - "express-session"
+          - "cookie-session"
+          - "connect-redis"
+          - "connect-mongo"
+          - "iron-session"
+          - "express-mysql-session"
+        password_hashing:
+          - "bcryptjs"
+          - "bcrypt"
+          - "argon2"
+          - "scrypt"
+          - "@node-rs/bcrypt"
+        rbac_libraries:
+          - "accesscontrol"
+          - "casl"
+          - "@casbin/node-casbin"
+      python:
+        auth_libraries:
+          - "django-allauth"
+          - "django-oauth-toolkit"
+          - "python-social-auth"
+          - "python-saml"
+          - "authlib"
+          - "flask-login"
+          - "flask-security"
+          - "flask-httpauth"
+          - "fastapi-users"
+          - "python-jose"
+          - "PyJWT"
+          - "oauthlib"
+          - "djangosaml2"
+        mfa_libraries:
+          - "django-otp"
+          - "django-two-factor-auth"
+          - "pyotp"
+          - "python-fido2"
+          - "webauthn"
+        session_patterns:
+          - "django.contrib.sessions"
+          - "flask-session"
+          - "SessionMiddleware"
+          - "itsdangerous"
+        password_hashing:
+          - "django.contrib.auth.hashers"
+          - "passlib"
+          - "bcrypt"
+          - "argon2-cffi"
+          - "werkzeug.security"
+        rbac_libraries:
+          - "django-guardian"
+          - "flask-principal"
+          - "flask-security"
+          - "casbin"
+      go:
+        auth_libraries:
+          - "github.com/coreos/go-oidc"
+          - "github.com/markbates/goth"
+          - "github.com/crewjam/saml"
+          - "github.com/golang-jwt/jwt"
+          - "github.com/gorilla/sessions"
+          - "github.com/volatiletech/authboss"
+          - "github.com/go-oauth2/oauth2"
+          - "golang.org/x/oauth2"
+        mfa_libraries:
+          - "github.com/pquerna/otp"
+          - "github.com/duo-labs/webauthn"
+          - "github.com/go-webauthn/webauthn"
+        password_hashing:
+          - "golang.org/x/crypto/bcrypt"
+          - "golang.org/x/crypto/argon2"
+          - "golang.org/x/crypto/scrypt"
+        rbac_libraries:
+          - "github.com/casbin/casbin"
+          - "github.com/ory/ladon"
+      java:
+        auth_libraries:
+          - "spring-security"
+          - "spring-security-oauth2"
+          - "spring-security-saml2"
+          - "keycloak"
+          - "pac4j"
+          - "Apache Shiro"
+          - "nimbus-jose-jwt"
+          - "auth0-java"
+        mfa_libraries:
+          - "GoogleAuth"
+          - "java-totp"
+          - "waffle-jna"
+        password_hashing:
+          - "BCryptPasswordEncoder"
+          - "Argon2PasswordEncoder"
+          - "PasswordEncoder"
+        rbac_libraries:
+          - "@PreAuthorize"
+          - "@Secured"
+          - "hasRole"
+      ruby:
+        auth_libraries:
+          - "devise"
+          - "omniauth"
+          - "omniauth-saml"
+          - "doorkeeper"
+          - "pundit"
+          - "cancancan"
+          - "sorcery"
+          - "authlogic"
+          - "jwt"
+        session_patterns:
+          - "ActionDispatch::Session"
+          - "redis-session-store"
+          - "activerecord-session_store"
+        password_hashing:
+          - "bcrypt"
+          - "has_secure_password"
+        rbac_libraries:
+          - "pundit"
+          - "cancancan"
+          - "rolify"
+      rust:
+        auth_libraries:
+          - "actix-identity"
+          - "actix-session"
+          - "jsonwebtoken"
+          - "oxide-auth"
+          - "tower-sessions"
+          - "openidconnect"
+        password_hashing:
+          - "bcrypt"
+          - "argon2"
+          - "scrypt"
+        rbac_libraries:
+          - "casbin"
+      csharp:
+        auth_libraries:
+          - "Microsoft.AspNetCore.Authentication"
+          - "Microsoft.AspNetCore.Identity"
+          - "IdentityServer4"
+          - "Duende.IdentityServer"
+          - "Microsoft.AspNetCore.Authentication.JwtBearer"
+          - "Microsoft.AspNetCore.Authentication.OpenIdConnect"
+        mfa_libraries:
+          - "GoogleAuthenticator"
+          - "OtpNet"
+        rbac_libraries:
+          - "[Authorize]"
+          - "ClaimsPrincipal"
+      php:
+        auth_libraries:
+          - "laravel/passport"
+          - "laravel/sanctum"
+          - "tymon/jwt-auth"
+          - "symfony/security-bundle"
+          - "league/oauth2-server"
+          - "simplesamlphp/simplesamlphp"
+        password_hashing:
+          - "password_hash"
+          - "Hash::make"
+          - "bcrypt"
+        rbac_libraries:
+          - "spatie/laravel-permission"
+          - "santigarcor/laratrust"
+
+  APPL:
+    name: "Application Security"
+    languages:
+      javascript:
+        input_validation:
+          - "zod"
+          - "joi"
+          - "yup"
+          - "class-validator"
+          - "express-validator"
+          - "ajv"
+          - "valibot"
+          - "superstruct"
+        xss_protection:
+          - "DOMPurify"
+          - "sanitize-html"
+          - "xss"
+          - "helmet"
+          - "isomorphic-dompurify"
+        csrf_protection:
+          - "csurf"
+          - "csrf-csrf"
+          - "lusca"
+          - "@edge-csrf/nextjs"
+        security_headers:
+          - "helmet"
+          - "cors"
+          - "nocache"
+          - "@fastify/helmet"
+        rate_limiting:
+          - "express-rate-limit"
+          - "rate-limiter-flexible"
+          - "express-slow-down"
+          - "bottleneck"
+          - "@fastify/rate-limit"
+          - "upstash/ratelimit"
+        logging:
+          - "winston"
+          - "pino"
+          - "bunyan"
+          - "morgan"
+          - "log4js"
+          - "@opentelemetry/api"
+        orm_safe_queries:
+          - "prisma"
+          - "sequelize"
+          - "typeorm"
+          - "knex"
+          - "mongoose"
+          - "drizzle-orm"
+        secret_management:
+          - "dotenv"
+          - "@azure/keyvault-secrets"
+          - "@google-cloud/secret-manager"
+          - "aws-secrets-manager"
+      python:
+        input_validation:
+          - "pydantic"
+          - "marshmallow"
+          - "cerberus"
+          - "wtforms"
+          - "django.forms"
+          - "voluptuous"
+        xss_protection:
+          - "bleach"
+          - "markupsafe"
+          - "django.utils.html"
+          - "html5lib"
+        csrf_protection:
+          - "django.middleware.csrf"
+          - "flask-wtf"
+          - "CSRFProtect"
+          - "flask-seasurf"
+        security_headers:
+          - "django-csp"
+          - "flask-talisman"
+          - "secure"
+          - "django-security"
+        rate_limiting:
+          - "django-ratelimit"
+          - "flask-limiter"
+          - "slowapi"
+          - "django-defender"
+        logging:
+          - "logging"
+          - "structlog"
+          - "loguru"
+          - "python-json-logger"
+        orm_safe_queries:
+          - "django.db.models"
+          - "SQLAlchemy"
+          - "tortoise-orm"
+          - "peewee"
+          - "pony"
+        secret_management:
+          - "python-decouple"
+          - "azure-keyvault-secrets"
+          - "google-cloud-secret-manager"
+          - "boto3.*secretsmanager"
+      go:
+        input_validation:
+          - "github.com/go-playground/validator"
+          - "github.com/asaskevich/govalidator"
+          - "github.com/invopop/validation"
+        security_headers:
+          - "github.com/unrolled/secure"
+          - "github.com/rs/cors"
+        rate_limiting:
+          - "golang.org/x/time/rate"
+          - "github.com/ulule/limiter"
+          - "github.com/throttled/throttled"
+          - "github.com/didip/tollbooth"
+        logging:
+          - "go.uber.org/zap"
+          - "github.com/sirupsen/logrus"
+          - "log/slog"
+          - "github.com/rs/zerolog"
+        orm_safe_queries:
+          - "gorm.io/gorm"
+          - "github.com/jmoiron/sqlx"
+          - "github.com/go-gorm/gorm"
+          - "entgo.io/ent"
+        secret_management:
+          - "github.com/joho/godotenv"
+          - "cloud.google.com/go/secretmanager"
+          - "github.com/aws/aws-sdk-go/service/secretsmanager"
+      java:
+        input_validation:
+          - "javax.validation"
+          - "jakarta.validation"
+          - "hibernate-validator"
+          - "spring-validation"
+        xss_protection:
+          - "owasp-java-encoder"
+          - "esapi"
+        security_headers:
+          - "spring-security-headers"
+          - "HttpSecurity.headers()"
+        rate_limiting:
+          - "bucket4j"
+          - "resilience4j"
+          - "guava.RateLimiter"
+        logging:
+          - "slf4j"
+          - "logback"
+          - "log4j2"
+          - "java.util.logging"
+        orm_safe_queries:
+          - "JpaRepository"
+          - "CriteriaBuilder"
+          - "TypedQuery"
+          - "QueryDsl"
+        secret_management:
+          - "spring-cloud-config"
+          - "spring-vault"
+          - "aws-secrets-manager-jdbc"
+      ruby:
+        input_validation:
+          - "ActiveModel::Validations"
+          - "dry-validation"
+          - "ActiveRecord::Validations"
+        csrf_protection:
+          - "protect_from_forgery"
+          - "ActionController::RequestForgeryProtection"
+          - "rack_csrf"
+        security_headers:
+          - "secure_headers"
+          - "rack-protection"
+        rate_limiting:
+          - "rack-attack"
+          - "rack-throttle"
+          - "redis-throttle"
+        logging:
+          - "logger"
+          - "semantic_logger"
+          - "lograge"
+        orm_safe_queries:
+          - "ActiveRecord"
+          - "Sequel"
+        secret_management:
+          - "dotenv"
+          - "figaro"
+          - "chamber"
+      rust:
+        input_validation:
+          - "validator"
+          - "serde"
+          - "garde"
+        security_headers:
+          - "tower-http::cors"
+          - "actix-cors"
+        logging:
+          - "tracing"
+          - "log"
+          - "env_logger"
+          - "slog"
+        orm_safe_queries:
+          - "sqlx"
+          - "diesel"
+          - "sea-orm"
+        secret_management:
+          - "dotenvy"
+          - "envy"
+      csharp:
+        input_validation:
+          - "FluentValidation"
+          - "DataAnnotations"
+          - "System.ComponentModel.DataAnnotations"
+        xss_protection:
+          - "HtmlSanitizer"
+          - "AntiXssEncoder"
+        security_headers:
+          - "NWebsec"
+        rate_limiting:
+          - "AspNetCoreRateLimit"
+          - "Polly"
+        logging:
+          - "Serilog"
+          - "NLog"
+          - "ILogger"
+        secret_management:
+          - "Azure.Security.KeyVault"
+          - "Microsoft.Extensions.Configuration"
+      php:
+        input_validation:
+          - "illuminate/validation"
+          - "symfony/validator"
+          - "respect/validation"
+          - "cakephp/validation"
+        xss_protection:
+          - "htmlpurifier"
+          - "ezyang/htmlpurifier"
+        csrf_protection:
+          - "csrf_field"
+          - "VerifyCsrfToken"
+          - "symfony/security-csrf"
+        security_headers:
+          - "bepsvpt/secure-headers"
+        rate_limiting:
+          - "laravel/throttle"
+          - "symfony/rate-limiter"
+          - "redis-throttle"
+        logging:
+          - "monolog/monolog"
+          - "psr/log"
+        orm_safe_queries:
+          - "Eloquent"
+          - "Query Builder"
+          - "doctrine/orm"
+        secret_management:
+          - "vlucas/phpdotenv"
+          - "symfony/dotenv"
+
+  DATA:
+    name: "Data Security"
+    languages:
+      javascript:
+        encryption:
+          - "crypto"
+          - "crypto-js"
+          - "@aws-sdk/client-kms"
+          - "node-forge"
+          - "tweetnacl"
+          - "@noble/ciphers"
+          - "openpgp"
+        tls:
+          - "https.createServer"
+          - "tls.createServer"
+          - "tls.connect"
+        pii_handling:
+          - "anonymize-json"
+          - "gdpr-tools"
+        backup_libraries:
+          - "mongodb-backup"
+          - "pg-backup"
+      python:
+        encryption:
+          - "cryptography"
+          - "pycryptodome"
+          - "nacl"
+          - "boto3.*kms"
+          - "azure.keyvault"
+          - "google.cloud.kms"
+          - "fernet"
+        tls:
+          - "ssl.create_default_context"
+          - "SECURE_SSL_REDIRECT"
+          - "requests.*verify"
+        pii_handling:
+          - "presidio-analyzer"
+          - "presidio-anonymizer"
+          - "scrubadub"
+        backup_libraries:
+          - "django-dbbackup"
+          - "pg_dump"
+      go:
+        encryption:
+          - "crypto/aes"
+          - "crypto/tls"
+          - "cloud.google.com/go/kms"
+          - "github.com/aws/aws-sdk-go/service/kms"
+          - "golang.org/x/crypto/nacl"
+        tls:
+          - "tls.Config"
+          - "http.ListenAndServeTLS"
+          - "crypto/tls"
+      java:
+        encryption:
+          - "javax.crypto"
+          - "java.security"
+          - "BouncyCastle"
+          - "AWSKMSClient"
+          - "KeyVaultClient"
+        tls:
+          - "SSLContext"
+          - "server.ssl"
+          - "javax.net.ssl"
+        pii_handling:
+          - "microsoft-presidio"
+      ruby:
+        encryption:
+          - "openssl"
+          - "rbnacl"
+          - "aws-sdk-kms"
+          - "attr_encrypted"
+        tls:
+          - "force_ssl"
+          - "OpenSSL::SSL"
+      rust:
+        encryption:
+          - "aes-gcm"
+          - "chacha20poly1305"
+          - "ring"
+          - "sodiumoxide"
+        tls:
+          - "rustls"
+          - "native-tls"
+          - "openssl"
+      csharp:
+        encryption:
+          - "System.Security.Cryptography"
+          - "Azure.Security.KeyVault.Keys"
+          - "BouncyCastle"
+        tls:
+          - "HttpsConnectionAdapterOptions"
+          - "SslStream"
+      php:
+        encryption:
+          - "openssl_encrypt"
+          - "sodium"
+          - "phpseclib"
+          - "defuse/php-encryption"
+        tls:
+          - "curl_setopt.*CURLOPT_SSL"
+          - "stream_context_create.*ssl"
+
+  VULN:
+    name: "Vulnerability Management"
+    languages:
+      javascript:
+        dependency_scanning:
+          - "npm audit"
+          - "yarn audit"
+          - "pnpm audit"
+          - "snyk test"
+          - "audit-ci"
+          - "improved-yarn-audit"
+          - "socket.dev"
+        sast:
+          - "eslint-plugin-security"
+          - "eslint-plugin-no-unsanitized"
+          - "semgrep"
+          - "njsscan"
+          - "@typescript-eslint"
+          - "eslint-plugin-security-node"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "npm-check-updates"
+      python:
+        dependency_scanning:
+          - "pip-audit"
+          - "safety"
+          - "pip audit"
+          - "snyk test"
+          - "piprot"
+          - "pyup"
+        sast:
+          - "bandit"
+          - "pylint"
+          - "semgrep"
+          - "pyflakes"
+          - "prospector"
+          - "pyre-check"
+          - "mypy"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "pip-upgrader"
+      go:
+        dependency_scanning:
+          - "govulncheck"
+          - "nancy"
+          - "snyk"
+          - "trivy"
+        sast:
+          - "gosec"
+          - "staticcheck"
+          - "semgrep"
+          - "golangci-lint"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "go get -u"
+      java:
+        dependency_scanning:
+          - "dependency-check"
+          - "snyk"
+          - "dependabot"
+          - "owasp-dependency-check"
+        sast:
+          - "spotbugs"
+          - "findsecbugs"
+          - "checkmarx"
+          - "semgrep"
+          - "pmd"
+          - "sonarqube"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "versions-maven-plugin"
+      ruby:
+        dependency_scanning:
+          - "bundler-audit"
+          - "bundle audit"
+          - "snyk"
+          - "ruby-advisory-db"
+        sast:
+          - "brakeman"
+          - "rubocop"
+          - "dawnscanner"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "bundle outdated"
+      rust:
+        dependency_scanning:
+          - "cargo audit"
+          - "cargo-deny"
+          - "cargo-outdated"
+        sast:
+          - "clippy"
+          - "cargo-geiger"
+          - "rust-analyzer"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "cargo-update"
+      csharp:
+        dependency_scanning:
+          - "dotnet list package --vulnerable"
+          - "snyk"
+          - "whitesource"
+        sast:
+          - "Roslynator"
+          - "SecurityCodeScan"
+          - "semgrep"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "dotnet outdated"
+      php:
+        dependency_scanning:
+          - "composer audit"
+          - "local-php-security-checker"
+          - "enlightn/security-checker"
+        sast:
+          - "phpstan"
+          - "psalm"
+          - "phan"
+          - "phpcs-security-audit"
+        dependency_management:
+          - "renovate"
+          - "dependabot"
+          - "composer outdated"
+
+  ITAC:
+    name: "IT Accessibility"
+    languages:
+      javascript:
+        testing_tools:
+          - "jest-axe"
+          - "cypress-axe"
+          - "@axe-core/react"
+          - "pa11y"
+          - "eslint-plugin-jsx-a11y"
+          - "@testing-library/jest-dom"
+          - "playwright-axe"
+          - "storybook-addon-a11y"
+        component_libraries:
+          - "@radix-ui"
+          - "@headlessui"
+          - "@chakra-ui"
+          - "@reach"
+          - "react-aria"
+          - "@mui/material"
+          - "@adobe/react-spectrum"
+        linting:
+          - "eslint-plugin-jsx-a11y"
+          - "@angular-eslint/template/accessibility"
+      python:
+        testing_tools:
+          - "axe-selenium-python"
+          - "pa11y"
+          - "accessibility-insights-web"
+      java:
+        testing_tools:
+          - "axe-core-selenium"
+          - "deque-axe-core"
+      ruby:
+        testing_tools:
+          - "axe-core-rspec"
+          - "axe-matchers"
+      csharp:
+        testing_tools:
+          - "Selenium.Axe"
+          - "Deque.AxeCore.Selenium"
+
+  PRIV:
+    name: "Privacy"
+    languages:
+      javascript:
+        consent_management:
+          - "cookiebot"
+          - "onetrust"
+          - "cookie-consent"
+          - "@cookiehub/cookieconsent"
+        gdpr_tools:
+          - "gdpr-cookie-consent"
+          - "react-cookie-consent"
+        analytics_privacy:
+          - "plausible-tracker"
+          - "simple-analytics"
+          - "fathom-client"
+      python:
+        pii_detection:
+          - "presidio-analyzer"
+          - "scrubadub"
+          - "pii-codex"
+        gdpr_tools:
+          - "django-gdpr-assist"
+          - "django-cookie-consent"
+      go:
+        pii_detection:
+          - "github.com/stripe/presidio"
+      java:
+        pii_detection:
+          - "microsoft-presidio"
+          - "dl4j-pii"
+
+  NETW:
+    name: "Network Security"
+    languages:
+      javascript:
+        firewall_tools:
+          - "express-ipfilter"
+          - "ip-range-check"
+        dns_security:
+          - "dnssec"
+          - "dns-over-https"
+      python:
+        firewall_tools:
+          - "django-guardian"
+          - "flask-ipban"
+          - "django-ipware"
+        tls_validation:
+          - "certifi"
+          - "ssl.match_hostname"
+      go:
+        network_security:
+          - "github.com/google/gopacket"
+          - "github.com/miekg/dns"
+      java:
+        network_security:
+          - "spring-security-web"
+          - "Apache HttpComponents"
+
+  INCR:
+    name: "Incident Response"
+    languages:
+      javascript:
+        monitoring:
+          - "@sentry/node"
+          - "@sentry/nextjs"
+          - "newrelic"
+          - "datadog"
+          - "@datadog/browser-rum"
+        error_tracking:
+          - "winston"
+          - "pino"
+          - "bugsnag"
+          - "rollbar"
+      python:
+        monitoring:
+          - "sentry-sdk"
+          - "newrelic"
+          - "datadog"
+          - "elastic-apm"
+        error_tracking:
+          - "logging"
+          - "structlog"
+          - "bugsnag"
+          - "rollbar"
+      go:
+        monitoring:
+          - "github.com/getsentry/sentry-go"
+          - "go.opentelemetry.io/otel"
+          - "github.com/DataDog/dd-trace-go"
+        error_tracking:
+          - "go.uber.org/zap"
+          - "github.com/sirupsen/logrus"
+      java:
+        monitoring:
+          - "io.sentry:sentry"
+          - "com.newrelic.agent.java"
+          - "io.micrometer:micrometer-core"
+        error_tracking:
+          - "slf4j"
+          - "logback"
+      ruby:
+        monitoring:
+          - "sentry-ruby"
+          - "newrelic_rpm"
+          - "scout_apm"
+        error_tracking:
+          - "bugsnag"
+          - "rollbar"
+          - "honeybadger"
+      rust:
+        monitoring:
+          - "sentry"
+          - "tracing-subscriber"
+        error_tracking:
+          - "tracing"
+          - "log"
+      csharp:
+        monitoring:
+          - "Sentry.AspNetCore"
+          - "NewRelic.Agent"
+          - "Datadog.Trace"
+        error_tracking:
+          - "Serilog"
+          - "NLog"
+      php:
+        monitoring:
+          - "sentry/sentry-laravel"
+          - "sentry/sentry-symfony"
+          - "bugsnag/bugsnag-laravel"
+        error_tracking:
+          - "monolog/monolog"
+          - "rollbar/rollbar-php"
+
+  BCDR:
+    name: "Business Continuity & Disaster Recovery"
+    languages:
+      javascript:
+        backup_tools:
+          - "mongodb-backup"
+          - "pg-backup"
+          - "@aws-sdk/client-s3"
+          - "node-cron"
+      python:
+        backup_tools:
+          - "django-dbbackup"
+          - "boto3.*s3"
+          - "azure-storage-blob"
+          - "google-cloud-storage"
+      go:
+        backup_tools:
+          - "github.com/aws/aws-sdk-go/service/s3"
+          - "cloud.google.com/go/storage"
+      java:
+        backup_tools:
+          - "aws-java-sdk-s3"
+          - "azure-storage-blob"
+      ruby:
+        backup_tools:
+          - "backup"
+          - "aws-sdk-s3"
+      php:
+        backup_tools:
+          - "spatie/laravel-backup"
+          - "aws/aws-sdk-php"
+
+# Graceful fallback when language is unknown
+unknown_language:
+  strategy: "Use generic patterns from scan-patterns.yaml only"
+  note: >
+    If the repo's primary language cannot be detected (no recognized
+    dependency files or file extensions), fall back to the generic
+    grep patterns in scan-patterns.yaml. Do NOT skip the assessment.
+    Generic patterns still catch many security implementations through
+    common keywords (oauth, csrf, encrypt, etc.) that appear across
+    most languages. Report detection confidence as 'Low' for findings
+    in unknown-language repos.

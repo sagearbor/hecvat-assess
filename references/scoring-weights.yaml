@@ -1,0 +1,172 @@
+# HECVAT Scoring Weights
+# Weights reflect relative security impact for compliance scoring.
+# Used alongside raw question counts to produce a weighted score.
+#
+# Weight scale: 1-10 (10 = most critical for security posture)
+# These weights are applied per-category. Individual question weights
+# within a category are equal (the category weight applies to all
+# questions in that category).
+
+category_weights:
+  # Security-critical categories (weight 8-10)
+  AAAI:
+    name: "Authentication & Authorization"
+    weight: 10
+    rationale: "Auth is the primary attack surface. Missing auth = full compromise."
+  APPL:
+    name: "Application Security"
+    weight: 9
+    rationale: "Input validation, injection, XSS — direct vulnerability vectors."
+  DATA:
+    name: "Data Security"
+    weight: 9
+    rationale: "Encryption, key management, data handling — breach impact."
+  VULN:
+    name: "Vulnerability Management"
+    weight: 8
+    rationale: "Known vulnerabilities are the #1 exploited vector."
+
+  # Important categories (weight 5-7)
+  CHNG:
+    name: "Change Management"
+    weight: 6
+    rationale: "CI/CD and code review reduce defect introduction."
+  AISC:
+    name: "AI Security Controls"
+    weight: 7
+    rationale: "AI-specific attack vectors (prompt injection, model poisoning)."
+  AILM:
+    name: "AI Language Models"
+    weight: 7
+    rationale: "LLM-specific risks (data leakage, hallucination, jailbreak)."
+  AIML:
+    name: "AI/ML Model Security"
+    weight: 6
+    rationale: "Model integrity and supply chain."
+  AIGN:
+    name: "AI Governance"
+    weight: 5
+    rationale: "Policy and oversight — important but less directly exploitable."
+  AIQU:
+    name: "AI Quality"
+    weight: 5
+    rationale: "Model quality affects reliability but less direct security impact."
+  DPAI:
+    name: "Data Privacy - AI"
+    weight: 7
+    rationale: "AI data privacy has regulatory and ethical implications."
+
+  # Moderate categories (weight 3-5)
+  ITAC:
+    name: "IT Accessibility"
+    weight: 3
+    rationale: "Important for compliance and inclusion but not a security vector."
+  DOCU:
+    name: "Documentation"
+    weight: 3
+    rationale: "Good practice but doesn't directly prevent attacks."
+
+  # Infrastructure (weight 5-7)
+  DCTR:
+    name: "Data Center"
+    weight: 6
+    rationale: "Cloud config directly affects attack surface."
+  OPEM:
+    name: "Operational Management"
+    weight: 5
+    rationale: "Monitoring and ops affect detection and response."
+  DRPV:
+    name: "Disaster Recovery / Privacy"
+    weight: 5
+    rationale: "Backup and recovery affect incident response capability."
+
+  # Compliance-specific (weight 5-7)
+  HIPA:
+    name: "HIPAA"
+    weight: 7
+    rationale: "Regulatory requirement with severe penalties."
+  PCID:
+    name: "PCI DSS"
+    weight: 7
+    rationale: "Payment data security — high regulatory impact."
+  FIDP:
+    name: "FERPA / Data Privacy"
+    weight: 6
+    rationale: "Education data privacy — regulatory requirement."
+  PDAT:
+    name: "Privacy Data"
+    weight: 6
+    rationale: "Data handling practices affect breach scope."
+  PPPR:
+    name: "Privacy Practices"
+    weight: 5
+    rationale: "Privacy processes and documentation."
+
+  # Third party (weight 4-5)
+  THRD:
+    name: "Third Party"
+    weight: 5
+    rationale: "Supply chain risk is significant but indirect."
+  CONS:
+    name: "Consulting / Services"
+    weight: 4
+    rationale: "Service provider risk — less direct."
+
+  # Organizational (not weighted — org attestation only)
+  GNRL:
+    name: "General"
+    weight: 0
+    rationale: "Org attestation only — not scored from code."
+  COMP:
+    name: "Company"
+    weight: 0
+    rationale: "Org attestation only."
+  REQU:
+    name: "Required/Routing"
+    weight: 0
+    rationale: "Routing questions — not scored."
+  PCOM:
+    name: "Privacy Company"
+    weight: 0
+    rationale: "Org attestation only."
+  PRGN:
+    name: "Privacy Regional"
+    weight: 0
+    rationale: "Org attestation only."
+  INTL:
+    name: "International"
+    weight: 0
+    rationale: "Org attestation only."
+  HFIH:
+    name: "Health/Financial/Insurance"
+    weight: 0
+    rationale: "Org attestation only."
+  PCHG:
+    name: "Privacy Change Management"
+    weight: 0
+    rationale: "Org attestation only."
+  PTHP:
+    name: "Privacy Third Party"
+    weight: 0
+    rationale: "Org attestation only."
+  PDOC:
+    name: "Privacy Documentation"
+    weight: 0
+    rationale: "Org attestation only."
+  PRPO:
+    name: "Privacy Policies"
+    weight: 0
+    rationale: "Org attestation only."
+
+# Scoring formula
+scoring:
+  raw_score:
+    description: "Simple ratio of compliant questions to assessed questions"
+    formula: "compliant_count / assessed_count"
+  weighted_score:
+    description: "Category-weighted compliance score (0-100)"
+    formula: |
+      For each category with weight > 0:
+        category_score = (compliant_in_category / total_in_category) * category_weight
+      weighted_score = sum(category_scores) / sum(category_weights_for_assessed_categories) * 100
+    note: "Only categories with at least one assessed question are included in the denominator"

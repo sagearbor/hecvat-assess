@@ -72,6 +72,45 @@ Files: <file:line, file:line, ...>
 Remediation: <if non-compliant, what to fix>
 ```
 
+## Weighted Scoring
+
+Read [scoring-weights.yaml](scoring-weights.yaml) for category weights. Compute two scores:
+
+### Raw Score
+Simple compliance ratio: `compliant / assessed` (e.g., 92/158 = 58%)
+
+### Weighted Score
+Category-weighted score that reflects security impact (0-100):
+- For each category, compute: `(compliant_in_category / total_in_category) * category_weight`
+- Sum all category scores and divide by sum of applicable weights
+- Categories with weight 0 (org attestation only) are excluded
+
+### Category Breakdown
+
+Include a per-category compliance breakdown in the output summary:
+
+```
+Category Breakdown
+==================
+Category                  | Score | Weight | Weighted | Status
+Authentication (AAAI)     | 15/18 |   10   |   8.3    | Gaps in MFA, session timeout
+Application Security (APPL)| 12/15 |    9   |   7.2    | Missing CSP, rate limiting
+Data Security (DATA)      |  8/12 |    9   |   6.0    | No encryption at rest
+Vulnerability Mgmt (VULN) |  4/6  |    8   |   5.3    | No SAST scanning
+Change Management (CHNG)  |  5/8  |    6   |   3.8    | No branch protection
+Accessibility (ITAC)      |  3/10 |    3   |   0.9    | Low WCAG compliance
+...
+
+Raw Score:     92/158 (58%)
+Weighted Score: 67/100
+```
+
+### Risk Priority
+
+The category breakdown reveals where to focus remediation:
+- Categories with high weight and low score are the highest priority
+- "Gap Impact" = weight * (1 - category_score) — higher means more impactful to fix
+
 ## Category-Specific Scoring Notes
 
 ### AAAI (Authentication/Authorization)
