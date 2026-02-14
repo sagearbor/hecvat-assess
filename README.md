@@ -21,11 +21,12 @@ All deliverables are written to `./docs/hecvat/` in the assessed repository:
 
 ## Installation
 
-```bash
-claude install-skill /path/to/hecvat-assess
-```
+Install as a Claude Code plugin:
 
-Or add to a project's `.claude/skills/` directory.
+```
+/plugin marketplace add sagearbor/hecvat-assess
+/plugin install hecvat-assess@sagearbor-hecvat-assess
+```
 
 ### Dependencies
 
@@ -102,15 +103,25 @@ The remediation patch addresses things that can be fixed by adding files or conf
 
 ```
 hecvat-assess/
-  SKILL.md                    -- Skill definition and 7-step workflow
-  HECVAT414.xlsx              -- EDUCAUSE HECVAT v4.1.4 template (332 questions)
-  hecvat-questions.json       -- Pre-parsed JSON cache of all questions
-  scripts/
-    parse_hecvat.py           -- XLSX to JSON parser
-    generate_report.py        -- JSON assessment to filled XLSX report
-  references/
-    scan-patterns.yaml        -- Structured Glob/Grep patterns by HECVAT category
-    scoring-rubric.md         -- Scoring rules, confidence levels, evidence requirements
+  .claude-plugin/
+    plugin.json               -- Plugin manifest
+  skills/
+    hecvat-assess/
+      SKILL.md                -- Skill definition and 7-step workflow
+      HECVAT414.xlsx          -- EDUCAUSE HECVAT v4.1.4 template (332 questions)
+      hecvat-questions.json   -- Pre-parsed JSON cache of all questions
+      scripts/
+        parse_hecvat.py       -- XLSX to JSON parser
+        generate_report.py    -- JSON assessment to filled XLSX report
+        tests/                -- 43 tests for parse + report scripts
+      references/
+        scan-patterns.yaml    -- Structured Glob/Grep patterns by HECVAT category
+        scoring-rubric.md     -- Scoring rules, confidence levels, evidence requirements
+        scoring-weights.yaml  -- Category weights for weighted scoring
+        language-patterns.yaml -- Language/framework detection patterns
+        context-analysis.yaml -- Context-aware analysis rules
+  README.md                   -- This file
+  TESTING.md                  -- Test suite documentation
 ```
 
 ## HECVAT categories assessed
