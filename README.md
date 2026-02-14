@@ -21,11 +21,22 @@ All deliverables are written to `./docs/hecvat/` in the assessed repository:
 
 ## Installation
 
-Install as a Claude Code plugin:
+### From the marketplace (recommended)
+
+Add the marketplace and install the plugin:
 
 ```
 /plugin marketplace add sagearbor/hecvat-assess
 /plugin install hecvat-assess@sagearbor-hecvat-assess
+```
+
+### Local testing
+
+Clone the repo and load it directly:
+
+```bash
+git clone https://github.com/sagearbor/hecvat-assess.git
+claude --plugin-dir ./hecvat-assess
 ```
 
 ### Dependencies
@@ -105,6 +116,7 @@ The remediation patch addresses things that can be fixed by adding files or conf
 hecvat-assess/
   .claude-plugin/
     plugin.json               -- Plugin manifest
+    marketplace.json          -- Marketplace catalog for /plugin marketplace add
   skills/
     hecvat-assess/
       SKILL.md                -- Skill definition and 7-step workflow

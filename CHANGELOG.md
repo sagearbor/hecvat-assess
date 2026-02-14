@@ -10,6 +10,7 @@
 
 ### Added
 - Plugin manifest (`.claude-plugin/plugin.json`)
+- Marketplace catalog (`.claude-plugin/marketplace.json`) for `/plugin marketplace add` discoverability
 - This changelog
 
 ### Migration
