@@ -88,6 +88,67 @@ The skill also activates when you ask Claude to:
 
 ## How it works
 
+```mermaid
+flowchart TD
+    START(["/hecvat-assess"]) --> S1
+
+    subgraph S1["1: Bootstrap"]
+        S1A["Resolve template<br/>(repo > org > blank)"] --> S1B["Parse HECVAT414.xlsx<br/>→ 332 questions JSON"]
+    end
+
+    S1 --> S2
+
+    subgraph S2["2: Version Check"]
+        S2A["Scrape EDUCAUSE site"] --> S2B{"Newer version?"}
+        S2B -- Yes --> S2C["Alert user"]
+        S2B -- No --> S2D["Continue"]
+        S2C --> S2D
+    end
+
+    S2 --> S3
+
+    subgraph S3["3: Repo Scan"]
+        S3A["Detect languages"] --> S3B["Pass 1: File discovery<br/>(Glob)"]
+        S3B --> S3C["Pass 2: Content analysis<br/>(Grep by category)"]
+    end
+
+    S3 --> S4
+
+    subgraph S4["4: Assessment Mapping"]
+        S4A["Apply scoring rubric"] --> S4B{"repo_assessable?"}
+        S4B -- Yes --> S4C["Map to Yes/No/N/A<br/>with evidence"]
+        S4B -- No --> S4D["Mark: org attestation"]
+        S4C --> S4E["assessment-current.json"]
+        S4D --> S4E
+    end
+
+    S4 --> S5
+
+    subgraph S5["5: Patch Generation"]
+        S5A["Identify remediable gaps"] --> S5B["hecvat-remediation.patch"]
+        S5B --> S5C["assessment-projected.json"]
+    end
+
+    S5 --> S6
+
+    subgraph S6["6: Developer Checklist"]
+        S6A["Group remaining gaps<br/>into work streams"] --> S6B["developer-checklist.yaml<br/>(tasks, acceptance criteria,<br/>files, tests, priority)"]
+    end
+
+    S6 --> S7
+
+    subgraph S7["7: Report Generation"]
+        S7A["Fill xlsx template"] --> S7B["report-current.xlsx"]
+        S7A --> S7C["report-projected.xlsx"]
+    end
+
+    S7 --> DONE(["6 deliverables → ./docs/hecvat/"])
+```
+
+> Interactive version: open [docs/workflow-diagram.html](docs/workflow-diagram.html) in any browser.
+
+**Steps:**
+
 1. **Bootstrap** -- Parses the HECVAT xlsx template into a JSON question cache (332 questions, 35 categories)
 2. **Version check** -- Checks EDUCAUSE website for newer HECVAT versions
 3. **Repo scan** -- Two-pass scan: file discovery (Glob) then content analysis (Grep) across all HECVAT categories
