@@ -9,6 +9,46 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
 
 ## Workflow
 
+```
+  /hecvat-assess
+       |
+       v
+ +-----------+     +--------------+     +------------+
+ | 1.Bootstrap|---->|2.Version Chk |---->| 3.Repo Scan|
+ | xlsx->JSON |     | EDUCAUSE.edu |     | Glob + Grep|
+ | 332 questions    | newer? alert |     | by category|
+ +-----------+     +--------------+     +------------+
+                                              |
+       +--------------------------------------+
+       |
+       v
+ +----------------+     +----------------+     +------------------+
+ |4.Assessment Map|---->|5.Patch Gen     |---->|6.Dev Checklist   |
+ | findings->      |     | remediable gaps|     | parallel work    |
+ | Yes/No/N/A     |     | -> .patch file |     | streams + tasks  |
+ | + evidence     |     | + projected    |     | for AI agents    |
+ +----------------+     +----------------+     +------------------+
+                                                      |
+       +----------------------------------------------+
+       |
+       v
+ +----------------+
+ |7.Report Gen    |
+ | fill xlsx      |
+ | current +      |
+ | projected      |
+ +----------------+
+       |
+       v
+ ./docs/hecvat/
+  |- hecvat-report-current.xlsx
+  |- hecvat-report-projected.xlsx
+  |- hecvat-remediation.patch
+  |- hecvat-improvement-developer-checklist.yaml
+  |- assessment-current.json
+  |- assessment-projected.json
+```
+
 1. **Bootstrap** — Parse xlsx into JSON cache
 2. **Version check** — Verify HECVAT version is current
 3. **Repo scan** — Deep scan codebase by HECVAT category
