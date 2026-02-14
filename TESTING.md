@@ -23,19 +23,19 @@ Comprehensive test suite created for the HECVAT assessment skill's Python script
 pip install pytest openpyxl
 
 # Run all tests
-pytest scripts/tests/
+pytest skills/hecvat-assess/scripts/tests/
 
 # Run with verbose output
-pytest scripts/tests/ -v
+pytest skills/hecvat-assess/scripts/tests/ -v
 
 # Run specific test file
-pytest scripts/tests/test_parse_hecvat.py -v
+pytest skills/hecvat-assess/scripts/tests/test_parse_hecvat.py -v
 ```
 
 ## Files Created
 
 ```
-scripts/tests/
+skills/hecvat-assess/scripts/tests/
 ├── README.md                    # Detailed test documentation
 ├── __init__.py                  # Package marker
 ├── conftest.py                  # Shared fixtures and test data
@@ -225,25 +225,25 @@ Tests follow QA engineering best practices:
 
 ```bash
 # Run all tests with verbose output
-pytest scripts/tests/ -v
+pytest skills/hecvat-assess/scripts/tests/ -v
 
 # Run only parse_hecvat tests
-pytest scripts/tests/test_parse_hecvat.py -v
+pytest skills/hecvat-assess/scripts/tests/test_parse_hecvat.py -v
 
 # Run only generate_report tests
-pytest scripts/tests/test_generate_report.py -v
+pytest skills/hecvat-assess/scripts/tests/test_generate_report.py -v
 
 # Run specific test class
-pytest scripts/tests/test_parse_hecvat.py::TestParseHecvatSchema -v
+pytest skills/hecvat-assess/scripts/tests/test_parse_hecvat.py::TestParseHecvatSchema -v
 
 # Run specific test
-pytest scripts/tests/test_parse_hecvat.py::TestParseHecvatSchema::test_output_has_required_top_level_keys -v
+pytest skills/hecvat-assess/scripts/tests/test_parse_hecvat.py::TestParseHecvatSchema::test_output_has_required_top_level_keys -v
 
 # Run with minimal output
-pytest scripts/tests/ -q
+pytest skills/hecvat-assess/scripts/tests/ -q
 
 # Run with coverage (requires pytest-cov)
-pytest scripts/tests/ --cov=scripts --cov-report=html
+pytest skills/hecvat-assess/scripts/tests/ --cov=skills/hecvat-assess/scripts --cov-report=html
 ```
 
 ## Maintenance
@@ -299,4 +299,4 @@ All tests passing with comprehensive coverage of:
 
 ## Questions?
 
-See `scripts/tests/README.md` for detailed documentation of each test.
+See `skills/hecvat-assess/scripts/tests/README.md` for detailed documentation of each test.

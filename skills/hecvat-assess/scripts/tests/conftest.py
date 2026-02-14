@@ -6,10 +6,10 @@ import pytest
 from pathlib import Path
 
 
-# Path constants
-REPO_ROOT = Path(__file__).parent.parent.parent
-HECVAT_XLSX = REPO_ROOT / "HECVAT414.xlsx"
-SCRIPTS_DIR = REPO_ROOT / "scripts"
+# Path constants — SKILL_ROOT points to skills/hecvat-assess/ (2 levels up from tests/)
+SKILL_ROOT = Path(__file__).parent.parent.parent
+HECVAT_XLSX = SKILL_ROOT / "HECVAT414.xlsx"
+SCRIPTS_DIR = SKILL_ROOT / "scripts"
 
 
 @pytest.fixture

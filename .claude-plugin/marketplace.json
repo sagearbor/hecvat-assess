@@ -1,0 +1,24 @@
+{
+  "name": "sagearbor-hecvat-assess",
+  "owner": {
+    "name": "sagearbor"
+  },
+  "metadata": {
+    "description": "HECVAT v4.1.4 compliance assessment skill for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "hecvat-assess",
+      "source": ".",
+      "description": "Evaluate code repositories against the EDUCAUSE HECVAT v4.1.4 (Higher Education Community Vendor Assessment Toolkit). Scans source code, config files, CI/CD pipelines, IaC, dependencies, and documentation to auto-assess ~48% of HECVAT questions (the rest is organization knowledge and IT setup dependent, which is info outside of solution repos).  Generates compliance reports as filled xlsx files, and produces patch files for remediable gaps.",
+      "version": "1.0.0",
+      "author": {
+        "name": "sagearbor"
+      },
+      "homepage": "https://github.com/sagearbor/hecvat-assess",
+      "repository": "https://github.com/sagearbor/hecvat-assess",
+      "keywords": ["hecvat", "educause", "compliance", "higher-education", "security-assessment", "vendor-assessment"],
+      "category": "compliance"
+    }
+  ]
+}
