@@ -13,6 +13,13 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
   /hecvat-assess
        |
        v
+ +--------------+
+ |0.Archive Prev|
+ | if exists,   |
+ | mv to archive|
+ +--------------+
+       |
+       v
  +-----------+     +--------------+     +------------+
  | 1.Bootstrap|---->|2.Version Chk |---->| 3.Repo Scan|
  | xlsx->JSON |     | EDUCAUSE.edu |     | Glob + Grep|
@@ -48,19 +55,85 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
   |- hecvat-remediation-manual.md        — Non-patchable gaps requiring human action
   |- hecvat-improvement-developer-checklist.yaml  — Developer/AI agent task list
   |- hecvat-summary.md                   — Human-readable summary with tables + glossary
+  |- hecvat-delta-from-previous.md       — Delta from last run (if archived run exists)
   |- assessment-current.json             — Machine-readable current assessment
   |- assessment-projected.json           — Machine-readable projected assessment
+  |- archive/                            — Previous runs (auto-archived on re-run)
+      |- YYYYMMDD-HHMM/                 — Timestamped snapshot of prior results
 ```
 
+0. **Archive previous** — If re-running, archive prior results to `archive/YYYYMMDD-HHMM/`
 1. **Bootstrap** — Parse xlsx into JSON cache
 2. **Version check** — Verify HECVAT version is current
 3. **Repo scan** — Deep scan codebase by HECVAT category
 4. **Assessment mapping** — Map findings to questions with evidence + fix classification
 5. **Patch generation** — Generate real `git apply`-able patches via edit-diff-revert cycle
 6. **Developer checklist** — Generate deduplicated improvement checklist for AI agents
-7. **Reports & summary** — Produce xlsx reports + human-readable markdown summary
+7. **Reports & summary** — Produce xlsx reports, markdown summary, and delta from previous run
 
 All outputs go to `./docs/hecvat/` in the repo being assessed. If a `./docs/` directory already exists, write directly into `./docs/hecvat/`. If it does not exist, create `./docs/` first, then `./docs/hecvat/`.
+
+## Step 0: Archive Previous Results
+
+Before writing any new outputs, check if a previous assessment exists. If so, archive it so re-runs don't destroy historical data.
+
+```bash
+if [ -f "./docs/hecvat/assessment-current.json" ]; then
+    # Timestamp from the existing assessment, fallback to file modification time
+    ARCHIVE_TS=$(python3 -c "
+import json, os
+from datetime import datetime
+try:
+    with open('./docs/hecvat/assessment-current.json') as f:
+        d = json.load(f)
+    ts = d.get('assessment_date', '')
+    if ts:
+        # Parse ISO date and format as YYYYMMDD-HHMM
+        dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+        print(dt.strftime('%Y%m%d-%H%M'))
+    else:
+        raise ValueError()
+except:
+    # Fallback: use file modification time
+    mt = os.path.getmtime('./docs/hecvat/assessment-current.json')
+    print(datetime.fromtimestamp(mt).strftime('%Y%m%d-%H%M'))
+")
+
+    ARCHIVE_DIR="./docs/hecvat/archive/${ARCHIVE_TS}"
+    mkdir -p "$ARCHIVE_DIR"
+
+    # Move all assessment outputs (not the archive dir itself, not prefilled template)
+    for f in ./docs/hecvat/assessment-*.json \
+             ./docs/hecvat/hecvat-report-*.xlsx \
+             ./docs/hecvat/hecvat-remediation.patch \
+             ./docs/hecvat/hecvat-remediation-manual.md \
+             ./docs/hecvat/hecvat-improvement-developer-checklist.yaml \
+             ./docs/hecvat/hecvat-summary*.md; do
+        [ -f "$f" ] && mv "$f" "$ARCHIVE_DIR/"
+    done
+
+    echo "Archived previous assessment to: $ARCHIVE_DIR"
+fi
+```
+
+After archiving, the agent should inform the user:
+- That previous results were archived and where
+- That `generate_delta.py` can compare the archived assessment with the new one after the run completes
+
+The archive directory structure:
+```
+docs/hecvat/
+  |- assessment-current.json          <- always the latest run
+  |- hecvat-report-current.xlsx
+  |- ...
+  |- archive/
+      |- 20260215-1505/               <- first run, archived automatically
+      |   |- assessment-current.json
+      |   |- hecvat-report-current.xlsx
+      |   |- ...
+      |- 20260301-0930/               <- second run, archived on third run
+          |- ...
+```
 
 ## Step 1: Bootstrap
 
@@ -552,6 +625,25 @@ python3 SKILL_DIR/scripts/generate_summary.py \
   SKILL_DIR/references/scoring-weights.yaml \
   ./docs/hecvat/hecvat-summary-projected.md \
   --compare ./docs/hecvat/assessment-current.json
+```
+
+### Generate delta from previous run (if archived)
+
+If Step 0 archived a previous assessment, automatically generate a delta report showing what improved:
+
+```bash
+# Find the most recent archive
+LATEST_ARCHIVE=$(ls -d ./docs/hecvat/archive/*/ 2>/dev/null | sort | tail -1)
+
+if [ -n "$LATEST_ARCHIVE" ] && [ -f "${LATEST_ARCHIVE}assessment-current.json" ]; then
+    python3 SKILL_DIR/scripts/generate_delta.py \
+      "${LATEST_ARCHIVE}assessment-current.json" \
+      ./docs/hecvat/assessment-current.json \
+      SKILL_DIR/references/scoring-weights.yaml \
+      ./docs/hecvat/hecvat-delta-from-previous.md
+
+    echo "Delta report generated: docs/hecvat/hecvat-delta-from-previous.md"
+fi
 ```
 
 ## Output Summary
