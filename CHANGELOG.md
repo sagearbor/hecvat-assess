@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0] - 2026-02-15
+
+### Fixed
+- **Marketplace source path**: Changed `source` from `"./skills/hecvat-assess"` to `"."` so the cached plugin directory includes `.claude-plugin/plugin.json`. Single-plugin repos must cache the entire repo for Claude Code to register the skill.
+
+### Migration
+- Users must uninstall and reinstall the plugin for the fix to take effect
+
 ## [2.0.0] - 2026-02-15
 
 ### Breaking Changes
