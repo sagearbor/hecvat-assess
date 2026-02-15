@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "hecvat-assess",
-      "source": ".",
+      "source": "./skills/hecvat-assess",
       "description": "Evaluate code repositories against the EDUCAUSE HECVAT v4.1.4 (Higher Education Community Vendor Assessment Toolkit). Scans source code, config files, CI/CD pipelines, IaC, dependencies, and documentation to auto-assess ~48% of HECVAT questions (the rest is organization knowledge and IT setup dependent, which is info outside of solution repos).  Generates compliance reports as filled xlsx files, and produces patch files for remediable gaps.",
       "version": "2.0.0",
       "author": {
