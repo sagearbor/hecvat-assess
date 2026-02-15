@@ -22,40 +22,43 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
        +--------------------------------------+
        |
        v
- +----------------+     +----------------+     +------------------+
- |4.Assessment Map|---->|5.Patch Gen     |---->|6.Dev Checklist   |
- | findings->      |     | remediable gaps|     | parallel work    |
- | Yes/No/N/A     |     | -> .patch file |     | streams + tasks  |
- | + evidence     |     | + projected    |     | for AI agents    |
- +----------------+     +----------------+     +------------------+
-                                                      |
-       +----------------------------------------------+
+ +----------------+     +-------------------+     +------------------+
+ |4.Assessment Map|---->|5.Patch Generation |---->|6.Dev Checklist   |
+ | findings->      |     | edit-diff-revert  |     | deduped tasks    |
+ | Yes/No/N/A     |     | real git patches  |     | parallel streams |
+ | + fix_type     |     | + manual items    |     | + resolves_count |
+ | + evidence_q   |     | + projected       |     |                  |
+ +----------------+     +-------------------+     +------------------+
+                                                        |
+       +------------------------------------------------+
        |
        v
- +----------------+
- |7.Report Gen    |
- | fill xlsx      |
- | current +      |
- | projected      |
- +----------------+
+ +-------------------+
+ |7.Reports & Summary|
+ | fill xlsx         |
+ | summary markdown  |
+ | current+projected |
+ +-------------------+
        |
        v
  ./docs/hecvat/
-  |- hecvat-report-current.xlsx
-  |- hecvat-report-projected.xlsx
-  |- hecvat-remediation.patch
-  |- hecvat-improvement-developer-checklist.yaml
-  |- assessment-current.json
-  |- assessment-projected.json
+  |- hecvat-report-current.xlsx          — Filled HECVAT xlsx (current state)
+  |- hecvat-report-projected.xlsx        — Filled HECVAT xlsx (post-remediation)
+  |- hecvat-remediation.patch            — git apply-able patch for code/config fixes
+  |- hecvat-remediation-manual.md        — Non-patchable gaps requiring human action
+  |- hecvat-improvement-developer-checklist.yaml  — Developer/AI agent task list
+  |- hecvat-summary.md                   — Human-readable summary with tables + glossary
+  |- assessment-current.json             — Machine-readable current assessment
+  |- assessment-projected.json           — Machine-readable projected assessment
 ```
 
 1. **Bootstrap** — Parse xlsx into JSON cache
 2. **Version check** — Verify HECVAT version is current
 3. **Repo scan** — Deep scan codebase by HECVAT category
-4. **Assessment mapping** — Map findings to questions with evidence
-5. **Patch generation** — Generate fixes for remediable gaps
-6. **Developer checklist** — Generate detailed improvement checklist for AI agents
-7. **Report generation** — Produce current + projected xlsx reports
+4. **Assessment mapping** — Map findings to questions with evidence + fix classification
+5. **Patch generation** — Generate real `git apply`-able patches via edit-diff-revert cycle
+6. **Developer checklist** — Generate deduplicated improvement checklist for AI agents
+7. **Reports & summary** — Produce xlsx reports + human-readable markdown summary
 
 All outputs go to `./docs/hecvat/` in the repo being assessed. If a `./docs/` directory already exists, write directly into `./docs/hecvat/`. If it does not exist, create `./docs/` first, then `./docs/hecvat/`.
 
@@ -158,14 +161,34 @@ For each question in the JSON cache:
 
 **If `repo_assessable: false`**: Mark as `"Requires organizational attestation"` in the Additional Information column. Do not guess at organizational practices.
 
+For each "No" answer, also determine:
+
+1. **fix_type**: What kind of remediation is needed (code/config/new_file/documentation/policy/organizational)
+2. **fix_complexity**: How much effort the fix requires (small/medium/large)
+3. **evidence_quality**: How strong the evidence is for the assessment (Strong/Moderate/Weak/Inferred)
+
+For "Yes" answers, include `evidence_quality` but omit `fix_type` and `fix_complexity`.
+For "N/A" and org-attestation answers, omit all three fields.
+
+See [references/scoring-rubric.md](references/scoring-rubric.md) for evidence quality levels and fix-type classification rules.
+
 Build the assessment JSON:
 ```json
 {
   "answers": {
     "AAAI-01": {
+      "answer": "No",
+      "additional_info": "[Confidence: High] No SSO integration found. Only basic username/password auth.",
+      "evidence": "app/main.py:2863, requirements.txt:1-53",
+      "fix_type": "code",
+      "fix_complexity": "large",
+      "evidence_quality": "Strong"
+    },
+    "APPL-05": {
       "answer": "Yes",
-      "additional_info": "[Confidence: High] OAuth2 with PKCE flow implemented via passport.js. Session timeout configured at 30 minutes.",
-      "evidence": "src/auth/middleware.ts:42, config/auth.yml:8"
+      "additional_info": "[Confidence: High] CSP headers configured via helmet middleware.",
+      "evidence": "src/middleware/security.ts:12",
+      "evidence_quality": "Strong"
     },
     "COMP-01": {
       "answer": "",
@@ -180,13 +203,130 @@ Write this to `./docs/hecvat/assessment-current.json`.
 
 ## Step 5: Patch Generation
 
-For questions where `answer: "No"` and a code/config fix exists, generate a unified diff patch. Group patches by file.
+Generate a real, `git apply`-able unified diff patch for code-fixable HECVAT gaps. Not all gaps can be patched — many require organizational policy, documentation, or manual processes. This step produces patches ONLY for gaps where a concrete code/config change exists.
 
-Consult the "patch_generation" section of [references/scan-patterns.yaml](references/scan-patterns.yaml) for common remediation patterns (security headers, dependency scanning, input validation, encryption config, accessibility attributes).
+Consult the "patch_generation" section of [references/scan-patterns.yaml](references/scan-patterns.yaml) for common remediation patterns and fix-type classifications.
 
-Write the combined patch to `./docs/hecvat/hecvat-remediation.patch`.
+### 5a. Classify each gap
 
-Then create `assessment-projected.json` — a copy of the current assessment with patched questions flipped from "No" to "Yes" and updated evidence noting the patch.
+Before generating patches, classify each "No" answer from Step 4 by `fix_type`:
+
+| fix_type | Description | Goes in .patch? | Example |
+|----------|-------------|-----------------|---------|
+| `code` | Change to existing source code | Yes | Add security middleware, input validation |
+| `config` | Change to existing config file | Yes | CI pipeline step, Dockerfile directive |
+| `new_file` | Create a new file | Yes | `.github/dependabot.yml`, policy doc |
+| `documentation` | Add/update documentation in repo | Maybe (if simple) | Add SECURITY.md, update README |
+| `policy` | Requires organizational process/policy | No | Change management policy, training |
+| `organizational` | Requires org attestation, legal, business | No | Insurance, certifications, staffing |
+
+Add the `fix_type` field to each answer in `assessment-current.json` (see Step 4 schema).
+
+### 5b. Safety checks
+
+Before making any edits, verify the working tree is clean:
+
+```bash
+# Verify clean state
+if [ -n "$(git status --porcelain)" ]; then
+    echo "ERROR: Working tree is dirty. Stashing changes first."
+    git stash push -m "hecvat-assess: pre-patch stash"
+fi
+```
+
+### 5c. Generate patches via edit-diff-revert cycle
+
+For each gap where `fix_type` is `code`, `config`, or `new_file`:
+
+1. **Read the target file** (the agent should already have context from Step 3, but re-read if needed)
+2. **Make the minimal fix** using the Edit tool (for existing files) or Write tool (for new files)
+3. **Capture the diff**: `git diff -- path/to/file >> docs/hecvat/hecvat-remediation.patch`
+   - For new files, use: `git diff --no-index /dev/null path/to/file >> docs/hecvat/hecvat-remediation.patch` OR stage with `git add path/to/file && git diff --cached -- path/to/file >> docs/hecvat/hecvat-remediation.patch`
+4. **Immediately revert**: `git checkout -- path/to/file` (for modified files) or `rm path/to/file && git reset HEAD path/to/file` (for new files)
+5. **Verify clean state**: `git status --porcelain` should show no changes
+
+Repeat for each patchable gap. Process files in alphabetical order so the patch is deterministic.
+
+### 5d. Validate the patch
+
+After generating all hunks, validate the complete patch:
+
+```bash
+git apply --check docs/hecvat/hecvat-remediation.patch
+```
+
+If validation fails:
+1. Identify which hunk(s) failed from the error output
+2. Re-read the affected file(s)
+3. Re-generate just the failing hunk(s) with corrected context
+4. Re-validate until `--check` passes
+
+### 5e. Add patch header
+
+Prepend a header comment block to the patch file:
+
+```
+# HECVAT Remediation Patch
+# Generated: <ISO date>
+# Repository: <repo name>
+# Branch: <branch name>
+# HECVAT Version: 4.1.4
+#
+# This patch addresses <N> code/config gaps identified by HECVAT assessment.
+# Remaining <M> gaps require manual action (see hecvat-remediation-manual.md).
+#
+# To apply:  git apply docs/hecvat/hecvat-remediation.patch
+# To review: git apply --stat docs/hecvat/hecvat-remediation.patch
+# To test:   git apply --check docs/hecvat/hecvat-remediation.patch
+#
+# REVIEW BEFORE APPLYING — patches are auto-generated and may need adjustment.
+# After applying, run your test suite to verify nothing broke.
+```
+
+### 5f. Generate manual remediation file
+
+For gaps where `fix_type` is `documentation`, `policy`, or `organizational`, generate a separate human-readable file at `docs/hecvat/hecvat-remediation-manual.md`:
+
+```markdown
+# HECVAT Manual Remediation Items
+
+These items cannot be auto-patched and require human action.
+
+## Documentation Tasks (can be done by developers)
+
+| ID | Question | What to Do | Affected Files |
+|----|----------|------------|----------------|
+| AIGN-01 | AI risk assessment | Create formal AI risk assessment doc following NIST AI RMF | README.md, new doc |
+
+## Policy Tasks (require organizational process)
+
+| ID | Question | What to Do | Owner |
+|----|----------|------------|-------|
+| CHNG-01 | Change notification policy | Define major change criteria, stakeholder list, timelines | Project Manager |
+
+## Organizational Attestation (require business/legal)
+
+| ID | Question | What to Do | Owner |
+|----|----------|------------|-------|
+| COMP-01 | Company information | Fill in organizational details in HECVAT template | Management |
+```
+
+### 5g. Build projected assessment
+
+Create `assessment-projected.json` by copying `assessment-current.json` and:
+- For each gap with `fix_type` in (`code`, `config`, `new_file`): flip answer from "No" to "Yes", update `additional_info` with "[Projected] Fixed via hecvat-remediation.patch"
+- For `documentation` gaps: flip to "Yes" with "[Projected] Manual documentation task"
+- Leave `policy` and `organizational` gaps as "No"
+- Add a top-level `flipped_questions` array listing all changed question IDs
+- Add a top-level `projected_methodology` field explaining what was flipped and why
+
+### 5h. Restore working tree
+
+If changes were stashed in 5b, restore them:
+
+```bash
+git stash pop 2>/dev/null || true
+```
 
 ## Step 6: Developer Checklist
 
@@ -296,6 +436,72 @@ org_attestation_gaps:
     # ... etc
 ```
 
+Each task should also include:
+- `patchable: true/false` — whether the task is already handled by the auto-generated `.patch` file
+- `fix_type` — matches the fix_type from the assessment (code/config/new_file/documentation/policy)
+- `fix_complexity` — matches the fix_complexity from the assessment (small/medium/large)
+- `resolves_count` — number of HECVAT questions this single task resolves
+
+Example task with these fields:
+```yaml
+      - id: "VULN-03-fix"
+        title: "Add SAST scanning to CI pipeline"
+        hecvat_questions: ["VULN-03"]
+        patchable: true
+        fix_type: config
+        fix_complexity: small
+        priority: high
+        effort: medium
+        ...
+```
+
+### Task deduplication
+
+Before creating individual tasks, identify questions that share the same remediation:
+
+1. Group questions where the fix is substantially the same implementation
+2. Create ONE task that references ALL related question IDs in `hecvat_questions`
+3. Title the task by the shared implementation, not the individual question
+4. Document which specific questions are resolved by the task
+
+Example: Questions AAAI-01, AAAI-06, AAAI-12, AAAI-15 all require SSO implementation.
+Create one task:
+
+```yaml
+      - id: "SSO-implementation"
+        title: "Implement SSO via OIDC/SAML integration"
+        hecvat_questions: ["AAAI-01", "AAAI-06", "AAAI-12", "AAAI-15"]
+        patchable: false
+        fix_type: code
+        fix_complexity: large
+        priority: high
+        effort: large
+        description: |
+          Implement OAuth2/OIDC and optionally SAML2 support to resolve 4 related
+          HECVAT authentication questions. Use authlib or python-social-auth.
+        resolves_count: 4
+```
+
+Common deduplication groups to watch for:
+- SSO/OIDC/SAML/federated auth → single "Implement SSO" task
+- RBAC/role separation/least privilege → single "Implement RBAC" task
+- Backup strategy/off-site/encryption/scheduling → single "Implement backup system" task
+- WCAG audit/VPAT/accessibility testing → single "Accessibility audit + remediation" task
+- Key management/rotation/lifecycle → single "Implement key management" task
+- Change management policy/notification/emergency → single "Create change management docs" task
+
+### Checklist metadata
+
+Include deduplication metrics in the metadata section:
+
+```yaml
+metadata:
+  ...
+  total_tasks: <N>
+  total_hecvat_questions_resolved: <M>  # M >= N because tasks are deduplicated
+  deduplication_ratio: <M/N>  # e.g., 1.5 means each task resolves 1.5 questions on average
+```
+
 **Key rules for checklist generation:**
 
 1. **Group tasks into parallel work streams** by HECVAT category. Tasks within different streams should be executable concurrently by different agents/developers.
@@ -306,8 +512,10 @@ org_attestation_gaps:
 6. **List `files_to_create` and `files_to_modify`** — so agents know exactly what they'll touch and can plan accordingly.
 7. **Include the org attestation summary** at the bottom so developers understand what's out of scope for code fixes.
 8. **Only include tasks where code remediation is possible** — don't create tasks for questions that require business process changes, legal agreements, or organizational attestation.
+9. **Deduplicate tasks** — group questions that share the same fix into a single task with all related question IDs.
+10. **Mark patchable status** — indicate whether each task is already handled by the auto-generated patch file.
 
-## Step 7: Report Generation
+## Step 7: Reports & Summary
 
 Use the report generator script to produce filled xlsx files. Use the resolved template from Step 1 (pre-filled if available, blank otherwise) so that org answers carry through:
 
@@ -327,6 +535,25 @@ python3 SKILL_DIR/scripts/generate_report.py \
   ./docs/hecvat/hecvat-report-projected.xlsx
 ```
 
+### Generate human-readable summary
+
+```bash
+python3 SKILL_DIR/scripts/generate_summary.py \
+  ./docs/hecvat/assessment-current.json \
+  SKILL_DIR/references/scoring-weights.yaml \
+  ./docs/hecvat/hecvat-summary.md
+```
+
+If a projected assessment exists, include it as a comparison:
+
+```bash
+python3 SKILL_DIR/scripts/generate_summary.py \
+  ./docs/hecvat/assessment-projected.json \
+  SKILL_DIR/references/scoring-weights.yaml \
+  ./docs/hecvat/hecvat-summary-projected.md \
+  --compare ./docs/hecvat/assessment-current.json
+```
+
 ## Output Summary
 
 After completion, print a summary:
@@ -339,27 +566,34 @@ Questions assessed from code: X / 332
 Questions requiring org attestation: Y / 332
 
 Compliance Scores:
-  Raw score:      Z / X assessed (PP%)
-  Weighted score: WW / 100
+  Raw score:            Z / X assessed (PP%)
+  Weighted score:       WW.W / 100
+  Confidence-adjusted:  CC.C / 100 (conservative)
+
+Patch Results:
+  Auto-patchable gaps:  AA (applied via hecvat-remediation.patch)
+  Manual action items:  BB (see hecvat-remediation-manual.md)
+  Checklist tasks:      TT (resolving QQ questions, dedup ratio: R.Rx)
+  Patch validation:     PASSED (git apply --check)
 
 Category Breakdown:
-  Category                   | Score  | Weight | Gaps
-  Authentication (AAAI)      | 15/18  |   10   | MFA, session timeout
-  Application Security (APPL)| 12/15  |    9   | CSP, rate limiting
-  Data Security (DATA)       |  8/12  |    9   | Encryption at rest
-  Vulnerability Mgmt (VULN)  |  4/6   |    8   | SAST scanning
+  Category                   | Score  | Weight | Gaps | Fix Types
+  Authentication (AAAI)      | 3/17   |   10   |  14  | 8 code, 4 policy, 2 org
+  Application Security (APPL)| 7/13   |    9   |   6  | 3 code, 2 config, 1 doc
   ...
 
 Top Remediation Priorities (by gap impact):
-  1. DATA — Encryption at rest (impact: 9.0)
-  2. VULN — SAST scanning (impact: 8.0)
-  3. AAAI — MFA enforcement (impact: 10.0)
+  1. AAAI — SSO + RBAC (impact: 8.2, resolves 14 questions)
+  2. DATA — Encryption + backups (impact: 5.6, resolves 13 questions)
+  ...
 
 Deliverables in ./docs/hecvat/:
   hecvat-report-current.xlsx                    — Current state HECVAT report
   hecvat-report-projected.xlsx                  — Projected report (post-patch)
-  hecvat-remediation.patch                      — Unified diff for remediable gaps
-  hecvat-improvement-developer-checklist.yaml   — Developer/AI agent improvement checklist
+  hecvat-remediation.patch                      — git apply-able patch (AA fixes)
+  hecvat-remediation-manual.md                  — Manual action items (BB items)
+  hecvat-improvement-developer-checklist.yaml   — Developer task list (TT tasks)
+  hecvat-summary.md                             — Human-readable summary
   assessment-current.json                       — Machine-readable current assessment
   assessment-projected.json                     — Machine-readable projected assessment
 ```
@@ -369,6 +603,8 @@ Deliverables in ./docs/hecvat/:
 ### scripts/
 - **parse_hecvat.py** — Parse HECVAT xlsx into `hecvat-questions.json`. Extracts all 332 questions with metadata, repo-assessability flags, and guidance.
 - **generate_report.py** — Fill the HECVAT xlsx template with assessment answers and evidence. Writes to Answer (col C) and Additional Information (col D) across all response sheets.
+- **generate_summary.py** — Generate a human-readable HECVAT assessment summary with category breakdown tables, fix-type analysis, remediation priorities, and glossary. Supports `--compare` mode for delta between two assessments.
+- **generate_delta.py** — Compare two HECVAT assessments and produce a delta report showing improvements (No→Yes), regressions (Yes→No), newly assessed questions, and per-category score changes.
 
 ### references/
 - **[scoring-rubric.md](references/scoring-rubric.md)** — Scoring rubric with answer values, confidence levels, repo-assessability decision tree, evidence quality requirements, weighted scoring methodology, and category-specific scoring notes. Read before assessment mapping (Step 4).
