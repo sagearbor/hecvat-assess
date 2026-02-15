@@ -5,6 +5,8 @@
 - [Confidence Levels](#confidence-levels)
 - [Repo-Assessable Decision Tree](#repo-assessable-decision-tree)
 - [Evidence Quality Requirements](#evidence-quality-requirements)
+- [Evidence Quality Scoring](#evidence-quality-scoring)
+- [Fix-Type Classification](#fix-type-classification)
 - [Category-Specific Scoring Notes](#category-specific-scoring-notes)
 
 ## Answer Values
@@ -110,6 +112,67 @@ Weighted Score: 67/100
 The category breakdown reveals where to focus remediation:
 - Categories with high weight and low score are the highest priority
 - "Gap Impact" = weight * (1 - category_score) — higher means more impactful to fix
+
+## Evidence Quality Scoring
+
+Each assessed answer includes an `evidence_quality` rating that indicates how strong
+the supporting evidence is. This helps reviewers know where to double-check.
+
+### Evidence Quality Levels
+
+| Level | Numeric | Criteria | When to Assign |
+|-------|---------|----------|----------------|
+| Strong | 1.0 | Direct implementation + tests or verified-active config | Found code AND test, or config confirmed via runtime check |
+| Moderate | 0.75 | Implementation found, no tests or not confirmed active | Found middleware but no test file, or config exists but not verified |
+| Weak | 0.5 | Reference exists but not confirmed functional | Env var defined but never read, or TODO comment, or disabled code |
+| Inferred | 0.25 | No direct evidence; based on framework defaults or absence | Framework provides feature by default (e.g., Django CSRF) |
+
+### Confidence-Adjusted Scoring (Optional)
+
+For a more honest compliance picture, weight "Yes" answers by evidence quality:
+- Strong "Yes" = 1.0 toward compliance
+- Moderate "Yes" = 0.75
+- Weak "Yes" = 0.5
+- Inferred "Yes" = 0.25
+
+Confidence-adjusted raw score: `sum(quality_weight for each Yes) / assessed_count`
+
+This is OPTIONAL — the standard scoring uses binary Yes/No. The confidence-adjusted
+score is an additional metric for teams that want a more conservative assessment.
+
+## Fix-Type Classification
+
+Each "No" answer should include a `fix_type` field indicating how the gap can be remediated:
+
+| fix_type | Description | Goes in .patch? | Example |
+|----------|-------------|-----------------|---------|
+| `code` | Change to existing source code | Yes | Add security middleware, input validation |
+| `config` | Change to existing config file | Yes | CI pipeline step, Dockerfile directive |
+| `new_file` | Create a new file | Yes | `.github/dependabot.yml`, policy doc |
+| `documentation` | Add/update documentation in repo | Maybe (if simple) | Add SECURITY.md, update README |
+| `policy` | Requires organizational process/policy | No | Change management policy, training |
+| `organizational` | Requires org attestation, legal, business | No | Insurance, certifications, staffing |
+
+### Fix Complexity
+
+Each "No" answer should also include a `fix_complexity` field:
+
+| Complexity | Estimated Effort | Example |
+|------------|-----------------|---------|
+| `small` | Less than 1 hour | Add a config file, enable a flag |
+| `medium` | 1-4 hours | Add middleware with configuration, write a policy doc |
+| `large` | 4+ hours | Implement SSO, build RBAC system, full accessibility audit |
+
+### Classification Rules
+
+- `code`: The fix requires changing existing source code (add middleware, validation, sanitization, etc.)
+- `config`: The fix requires changing existing config files (CI pipeline, Dockerfile, nginx config, etc.)
+- `new_file`: The fix requires creating a new file (`.github/dependabot.yml`, `SECURITY.md`, etc.)
+- `documentation`: The fix requires adding/updating documentation checked into the repo
+- `policy`: The fix requires organizational process or policy (change management policy, training, etc.)
+- `organizational`: The question requires business/legal attestation (insurance, certifications, staffing)
+
+For "Yes" and "N/A" answers, `fix_type` should be omitted or set to `null`.
 
 ## Category-Specific Scoring Notes
 
