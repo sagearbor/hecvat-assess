@@ -92,7 +92,10 @@ Neither override location is inside the skill directory, so your pre-filled temp
 Invoke within Claude Code on any repository:
 
 ```
-/hecvat-assess
+/hecvat-assess                       # Full assessment
+/hecvat-assess --from-step patch     # Re-run from patch generation (skips scan)
+/hecvat-assess --from-step reports   # Regenerate reports only
+/hecvat-assess --help                # Show help with all options
 ```
 
 The skill also activates when you ask Claude to:
