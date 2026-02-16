@@ -121,6 +121,50 @@ Required files by entry point:
 
 `--from-step patch` is the most common re-run entry point. Use it after updating the plugin to re-generate patches, projected assessments (3-tier scoring), the developer checklist, and xlsx reports from an existing `assessment-current.json` — without re-scanning the entire repo.
 
+## Help (--help)
+
+If the user passes `--help`, `-h`, or `help` as an argument, print the following help text and do not proceed with the assessment:
+
+```
+HECVAT Assessment Skill v3.1.0
+
+Usage:
+  /hecvat-assess                       Full assessment from scratch
+  /hecvat-assess --from-step patch     Re-run from patch generation (skips scan)
+  /hecvat-assess --from-step reports   Re-run report generation only
+  /hecvat-assess --help                Show this help
+
+Options:
+  --from-step <name|number>   Start from a specific step (see below)
+  --help, -h                  Show this help message
+
+Steps:
+  archive (0)    Archive previous results
+  bootstrap (1)  Parse HECVAT xlsx template
+  version (2)    Check for newer HECVAT version
+  scan (3)       Scan repo (Glob + Grep)
+  assess (4)     Map findings to Yes/No/N/A
+  patch (5)      Generate patches + projected assessments
+  checklist (6)  Generate developer checklist
+  reports (7)    Generate xlsx reports + summary
+
+Common workflows:
+  First run          /hecvat-assess
+  After plugin update /hecvat-assess --from-step patch
+  Regenerate reports  /hecvat-assess --from-step reports
+
+Pre-filled template (optional):
+  Org-wide:  ~/.config/hecvat/hecvat-prefilled.xlsx
+  Per-repo:  ./docs/hecvat/hecvat-prefilled.xlsx
+  Fill in org answers once, reuse across all repo assessments.
+
+Outputs (written to ./docs/hecvat/):
+  3 filled HECVAT spreadsheets (current, post-patch, post-checklist)
+  Remediation patch file (git apply compatible)
+  Developer improvement checklist (YAML)
+  Human-readable summary with 3-tier scoring
+```
+
 ## Step 0: Archive Previous Results
 
 Before writing any new outputs, check if a previous assessment exists. If so, archive it so re-runs don't destroy historical data.
