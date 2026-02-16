@@ -107,7 +107,7 @@ The skill also activates when you ask Claude to:
 
 ```mermaid
 flowchart TD
-    QS["🚀 /plugin marketplace add sagearbor/hecvat-assess\n/plugin install hecvat-assess@sagearbor-hecvat-assess"] --> START
+    QS["🚀 Quickstart<br/>1. /plugin marketplace add sagearbor/hecvat-assess<br/>2. /plugin install hecvat-assess@sagearbor-hecvat-assess"] --> START
     START(["/hecvat-assess"]) --> S1
 
     subgraph S1["1: Bootstrap"]
