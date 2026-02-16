@@ -76,6 +76,51 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
 
 All outputs go to `./docs/hecvat/` in the repo being assessed. If a `./docs/` directory already exists, write directly into `./docs/hecvat/`. If it does not exist, create `./docs/` first, then `./docs/hecvat/`.
 
+## Partial Re-run (--from-step)
+
+The skill accepts an optional `--from-step` argument to skip earlier steps when their outputs already exist. Steps are identified by **name** (stable across versions) or by number (for convenience).
+
+**Usage:** `/hecvat-assess --from-step patch`
+
+### Step names
+
+| Name | Number | What it does |
+|------|--------|-------------|
+| `archive` | 0 | Archive previous results |
+| `bootstrap` | 1 | Parse xlsx → JSON cache |
+| `version` | 2 | Check EDUCAUSE for newer HECVAT |
+| `scan` | 3 | Glob + Grep repo scan |
+| `assess` | 4 | Map findings → Yes/No/N/A |
+| `patch` | 5 | Generate patches + projected assessments |
+| `checklist` | 6 | Generate developer checklist |
+| `reports` | 7 | Generate xlsx reports + summary |
+
+Both forms are equivalent: `--from-step patch` and `--from-step 5`.
+
+### Entry points
+
+| Start from | Requires | Skips | Use case |
+|------------|----------|-------|----------|
+| (default) | nothing | nothing | Full assessment from scratch |
+| `patch` | `assessment-current.json` | archive → assess | Re-generate patches, projections, checklist, and reports after plugin update |
+| `reports` | `assessment-current.json` + `assessment-post-patch.json` + `assessment-post-checklist.json` | archive → checklist | Re-generate xlsx reports and summary only |
+
+### Validation
+
+Before skipping steps, verify that all required files exist in `./docs/hecvat/`. If any required file is missing, warn the user and fall back to the earliest step that can produce it. For example, if `--from-step reports` is requested but `assessment-post-patch.json` does not exist, fall back to `patch` (which generates the post-patch and post-checklist JSONs).
+
+```
+Required files by entry point:
+  --from-step patch:   ./docs/hecvat/assessment-current.json
+  --from-step reports: ./docs/hecvat/assessment-current.json
+                       ./docs/hecvat/assessment-post-patch.json
+                       ./docs/hecvat/assessment-post-checklist.json
+```
+
+### Common scenario
+
+`--from-step patch` is the most common re-run entry point. Use it after updating the plugin to re-generate patches, projected assessments (3-tier scoring), the developer checklist, and xlsx reports from an existing `assessment-current.json` — without re-scanning the entire repo.
+
 ## Step 0: Archive Previous Results
 
 Before writing any new outputs, check if a previous assessment exists. If so, archive it so re-runs don't destroy historical data.

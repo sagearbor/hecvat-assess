@@ -13,11 +13,25 @@ All deliverables are written to `./docs/hecvat/` in the assessed repository:
 | File | Description |
 |------|-------------|
 | `hecvat-report-current.xlsx` | Filled HECVAT spreadsheet reflecting current compliance state |
-| `hecvat-report-projected.xlsx` | Filled HECVAT spreadsheet projecting state after applying patches |
+| `hecvat-report-post-patch.xlsx` | Filled HECVAT spreadsheet after applying auto-generated patches |
+| `hecvat-report-post-checklist.xlsx` | Filled HECVAT spreadsheet after completing all developer checklist tasks |
 | `hecvat-remediation.patch` | Unified diff patch file for code/config fixes (`git apply` compatible) |
 | `hecvat-improvement-developer-checklist.yaml` | Structured checklist for AI agents or developers to improve compliance |
 | `assessment-current.json` | Machine-readable current assessment with evidence |
-| `assessment-projected.json` | Machine-readable projected assessment (post-patch) |
+| `assessment-post-patch.json` | Machine-readable post-patch assessment |
+| `assessment-post-checklist.json` | Machine-readable post-checklist assessment |
+
+## Quickstart
+
+Three commands in Claude Code — run these in the repo you want to assess:
+
+```
+/plugin marketplace add sagearbor/hecvat-assess
+/plugin install hecvat-assess@sagearbor-hecvat-assess
+/hecvat-assess
+```
+
+That's it. Results appear in `./docs/hecvat/`.
 
 ## Installation
 
@@ -90,6 +104,7 @@ The skill also activates when you ask Claude to:
 
 ```mermaid
 flowchart TD
+    QS["🚀 /plugin marketplace add sagearbor/hecvat-assess\n/plugin install hecvat-assess@sagearbor-hecvat-assess"] --> START
     START(["/hecvat-assess"]) --> S1
 
     subgraph S1["1: Bootstrap"]
@@ -126,7 +141,8 @@ flowchart TD
 
     subgraph S5["5: Patch Generation"]
         S5A["Identify remediable gaps"] --> S5B["hecvat-remediation.patch"]
-        S5B --> S5C["assessment-projected.json"]
+        S5B --> S5C["assessment-post-patch.json"]
+        S5B --> S5D["assessment-post-checklist.json"]
     end
 
     S5 --> S6
@@ -139,10 +155,11 @@ flowchart TD
 
     subgraph S7["7: Report Generation"]
         S7A["Fill xlsx template"] --> S7B["report-current.xlsx"]
-        S7A --> S7C["report-projected.xlsx"]
+        S7A --> S7C["report-post-patch.xlsx"]
+        S7A --> S7D["report-post-checklist.xlsx"]
     end
 
-    S7 --> DONE(["6 deliverables → ./docs/hecvat/"])
+    S7 --> DONE(["8 deliverables → ./docs/hecvat/"])
 ```
 
 > Interactive version: open [docs/workflow-diagram.html](docs/workflow-diagram.html) in any browser.
@@ -155,7 +172,7 @@ flowchart TD
 4. **Assessment mapping** -- Maps findings to Yes/No/N/A answers with confidence levels and evidence citations
 5. **Patch generation** -- Generates unified diff patches for remediable compliance gaps
 6. **Developer checklist** -- Builds a YAML checklist with parallel work streams, acceptance criteria, and test expectations
-7. **Report generation** -- Fills the HECVAT xlsx template with assessment results (current + projected)
+7. **Report generation** -- Fills the HECVAT xlsx template with assessment results (current + post-patch + post-checklist)
 
 ## Understanding the scores
 
@@ -170,6 +187,18 @@ If a repo genuinely has few security controls (no auth, no CI/CD, no security he
 ### Why the patch only fixes some questions
 
 The remediation patch addresses things that can be fixed by adding files or configuration -- security headers middleware, GitHub Actions workflows, dependabot.yml, SECURITY.md. Remaining gaps require actual feature implementation (authentication systems, RBAC, encryption at rest, WAF, IDS, backup systems, accessibility overhauls) or organizational commitments that no patch file can provide. The developer checklist covers the broader set of improvements.
+
+### 3-tier scoring
+
+The assessment produces three score tiers to give an honest picture of remediation effort:
+
+| Tier | What it represents | Effort |
+|------|-------------------|--------|
+| **Current** | Code as-is | — |
+| **Post-patch** | After `git apply hecvat-remediation.patch` | Minutes |
+| **Post-checklist** | After completing all developer checklist tasks | Hours to days |
+
+The post-patch score is what you get immediately by applying the auto-generated patch. The post-checklist score includes documentation tasks and design-decision code changes that require human judgment.
 
 ## Repo structure
 
