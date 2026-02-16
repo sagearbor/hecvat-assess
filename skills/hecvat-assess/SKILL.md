@@ -5,7 +5,7 @@ description: "Evaluate a GitHub or Azure DevOps repository against the HECVAT (H
 
 # HECVAT Repository Assessment
 
-Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions across 7 categories). Produce two filled HECVAT xlsx reports (current state + projected post-patch), a unified diff patch file for remediable gaps, and a developer improvement checklist for AI-assisted remediation.
+Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions across 7 categories). Produce three filled HECVAT xlsx reports (current state, post-patch, and post-checklist), a unified diff patch file for remediable gaps, and a developer improvement checklist for AI-assisted remediation.
 
 ## Workflow
 
@@ -34,7 +34,8 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
  | findings->      |     | edit-diff-revert  |     | deduped tasks    |
  | Yes/No/N/A     |     | real git patches  |     | parallel streams |
  | + fix_type     |     | + manual items    |     | + resolves_count |
- | + evidence_q   |     | + projected       |     |                  |
+ | + evidence_q   |     | + post-patch JSON |     |                  |
+ |                |     | + post-checklist  |     |                  |
  +----------------+     +-------------------+     +------------------+
                                                         |
        +------------------------------------------------+
@@ -42,22 +43,24 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
        v
  +-------------------+
  |7.Reports & Summary|
- | fill xlsx         |
+ | fill xlsx (x3)    |
  | summary markdown  |
- | current+projected |
+ | 3-tier scoring    |
  +-------------------+
        |
        v
  ./docs/hecvat/
   |- hecvat-report-current.xlsx          — Filled HECVAT xlsx (current state)
-  |- hecvat-report-projected.xlsx        — Filled HECVAT xlsx (post-remediation)
+  |- hecvat-report-post-patch.xlsx       — Filled HECVAT xlsx (after git apply only)
+  |- hecvat-report-post-checklist.xlsx   — Filled HECVAT xlsx (after all checklist tasks)
   |- hecvat-remediation.patch            — git apply-able patch for code/config fixes
   |- hecvat-remediation-manual.md        — Non-patchable gaps requiring human action
   |- hecvat-improvement-developer-checklist.yaml  — Developer/AI agent task list
-  |- hecvat-summary.md                   — Human-readable summary with tables + glossary
+  |- hecvat-summary.md                   — Human-readable summary with 3-tier table + glossary
   |- hecvat-delta-from-previous.md       — Delta from last run (if archived run exists)
   |- assessment-current.json             — Machine-readable current assessment
-  |- assessment-projected.json           — Machine-readable projected assessment
+  |- assessment-post-patch.json          — Machine-readable post-patch assessment
+  |- assessment-post-checklist.json      — Machine-readable post-checklist assessment
   |- archive/                            — Previous runs (auto-archived on re-run)
       |- YYYYMMDD-HHMM/                 — Timestamped snapshot of prior results
 ```
@@ -67,9 +70,9 @@ Assess a code repository against the EDUCAUSE HECVAT v4.1.4 (332 questions acros
 2. **Version check** — Verify HECVAT version is current
 3. **Repo scan** — Deep scan codebase by HECVAT category
 4. **Assessment mapping** — Map findings to questions with evidence + fix classification
-5. **Patch generation** — Generate real `git apply`-able patches via edit-diff-revert cycle
+5. **Patch generation** — Generate real `git apply`-able patches via edit-diff-revert cycle, plus 3-tier projected assessments
 6. **Developer checklist** — Generate deduplicated improvement checklist for AI agents
-7. **Reports & summary** — Produce xlsx reports, markdown summary, and delta from previous run
+7. **Reports & summary** — Produce 3 xlsx reports, markdown summary with 3-tier scoring, and delta from previous run
 
 All outputs go to `./docs/hecvat/` in the repo being assessed. If a `./docs/` directory already exists, write directly into `./docs/hecvat/`. If it does not exist, create `./docs/` first, then `./docs/hecvat/`.
 
@@ -108,7 +111,8 @@ except:
              ./docs/hecvat/hecvat-remediation.patch \
              ./docs/hecvat/hecvat-remediation-manual.md \
              ./docs/hecvat/hecvat-improvement-developer-checklist.yaml \
-             ./docs/hecvat/hecvat-summary*.md; do
+             ./docs/hecvat/hecvat-summary*.md \
+             ./docs/hecvat/hecvat-delta-from-previous.md; do
         [ -f "$f" ] && mv "$f" "$ARCHIVE_DIR/"
     done
 
@@ -384,14 +388,27 @@ These items cannot be auto-patched and require human action.
 | COMP-01 | Company information | Fill in organizational details in HECVAT template | Management |
 ```
 
-### 5g. Build projected assessment
+### 5g. Build projected assessments (3-tier model)
 
-Create `assessment-projected.json` by copying `assessment-current.json` and:
-- For each gap with `fix_type` in (`code`, `config`, `new_file`): flip answer from "No" to "Yes", update `additional_info` with "[Projected] Fixed via hecvat-remediation.patch"
-- For `documentation` gaps: flip to "Yes" with "[Projected] Manual documentation task"
-- Leave `policy` and `organizational` gaps as "No"
+Generate **two** projected assessments to give an honest picture of remediation effort:
+
+| Tier | File | What gets flipped | Represents |
+|------|------|-------------------|------------|
+| Current | `assessment-current.json` | — | Code as-is |
+| Post-patch | `assessment-post-patch.json` | Only `fix_type` in (`code`, `config`, `new_file`) that are IN the `.patch` file | Running `git apply` — minutes of effort |
+| Post-checklist | `assessment-post-checklist.json` | All of post-patch PLUS `documentation` gaps | Completing the full developer checklist — hours/days of effort |
+
+**assessment-post-patch.json** — Copy `assessment-current.json` and:
+- For each gap with `fix_type` in (`code`, `config`, `new_file`): flip answer from "No" to "Yes", update `additional_info` with "[Post-patch] Fixed via hecvat-remediation.patch"
+- Leave ALL other gaps (documentation, policy, organizational) as "No"
 - Add a top-level `flipped_questions` array listing all changed question IDs
-- Add a top-level `projected_methodology` field explaining what was flipped and why
+- Add a top-level `projected_methodology` field: "Only questions fixable by git apply of the auto-generated patch"
+
+**assessment-post-checklist.json** — Copy `assessment-post-patch.json` and:
+- For `documentation` gaps: flip to "Yes" with "[Post-checklist] Manual documentation task from developer checklist"
+- Leave `policy` and `organizational` gaps as "No"
+- Update `flipped_questions` to include documentation flips
+- Update `projected_methodology` field: "All questions resolvable by completing the developer checklist (patch + documentation tasks). Policy and organizational gaps remain."
 
 ### 5h. Restore working tree
 
@@ -419,7 +436,8 @@ metadata:
   hecvat_version: "4.1.4"
   repo: "<repo name>"
   current_score: "<compliant> / <assessed>"
-  projected_score: "<projected compliant> / <assessed>"
+  post_patch_score: "<post-patch compliant> / <assessed>"
+  post_checklist_score: "<post-checklist compliant> / <assessed>"
   total_tasks: <N>
 
 # Work streams that can be executed in parallel.
@@ -601,11 +619,17 @@ python3 SKILL_DIR/scripts/generate_report.py \
   ./docs/hecvat/assessment-current.json \
   ./docs/hecvat/hecvat-report-current.xlsx
 
-# Projected post-patch report
+# Post-patch report (git apply only)
 python3 SKILL_DIR/scripts/generate_report.py \
   "$XLSX" \
-  ./docs/hecvat/assessment-projected.json \
-  ./docs/hecvat/hecvat-report-projected.xlsx
+  ./docs/hecvat/assessment-post-patch.json \
+  ./docs/hecvat/hecvat-report-post-patch.xlsx
+
+# Post-checklist report (all developer tasks completed)
+python3 SKILL_DIR/scripts/generate_report.py \
+  "$XLSX" \
+  ./docs/hecvat/assessment-post-checklist.json \
+  ./docs/hecvat/hecvat-report-post-checklist.xlsx
 ```
 
 ### Generate human-readable summary
@@ -617,15 +641,20 @@ python3 SKILL_DIR/scripts/generate_summary.py \
   ./docs/hecvat/hecvat-summary.md
 ```
 
-If a projected assessment exists, include it as a comparison:
+The summary should include a **3-tier scoring table** showing current, post-patch, and post-checklist scores side by side. Include all three tiers in the main summary file rather than generating separate summary files per tier.
 
-```bash
-python3 SKILL_DIR/scripts/generate_summary.py \
-  ./docs/hecvat/assessment-projected.json \
-  SKILL_DIR/references/scoring-weights.yaml \
-  ./docs/hecvat/hecvat-summary-projected.md \
-  --compare ./docs/hecvat/assessment-current.json
+After writing `hecvat-summary.md`, also print the 3-tier table in the output summary:
+
 ```
+Compliance Scores (3-tier):
+  Tier              | Raw Score       | Weighted
+  Current           | 27/81 (33.3%)   | 36.3 / 100
+  Post-patch        | 39/81 (48.1%)   | 52.1 / 100    ← git apply only
+  Post-checklist    | 60/81 (74.1%)   | 68.7 / 100    ← all dev tasks done
+```
+
+To generate the scores for each tier, run `generate_summary.py` for each assessment JSON.
+The main `hecvat-summary.md` should include all three tiers' scores in its "Overall Scores" section.
 
 ### Generate delta from previous run (if archived)
 
@@ -657,10 +686,12 @@ Version: 4.1.4
 Questions assessed from code: X / 332
 Questions requiring org attestation: Y / 332
 
-Compliance Scores:
-  Raw score:            Z / X assessed (PP%)
-  Weighted score:       WW.W / 100
-  Confidence-adjusted:  CC.C / 100 (conservative)
+Compliance Scores (3-tier):
+  Tier              | Raw Score        | Weighted  | What it takes
+  Current           | ZZ / X (PP%)     | WW.W / 100 | —
+  Post-patch        | PP / X (PP%)     | WW.W / 100 | git apply (minutes)
+  Post-checklist    | CC / X (PP%)     | WW.W / 100 | Complete dev checklist (hours/days)
+  Confidence-adj:   CC.C / 100 (conservative — weights by evidence strength)
 
 Patch Results:
   Auto-patchable gaps:  AA (applied via hecvat-remediation.patch)
@@ -681,13 +712,15 @@ Top Remediation Priorities (by gap impact):
 
 Deliverables in ./docs/hecvat/:
   hecvat-report-current.xlsx                    — Current state HECVAT report
-  hecvat-report-projected.xlsx                  — Projected report (post-patch)
+  hecvat-report-post-patch.xlsx                 — Post-patch report (git apply only)
+  hecvat-report-post-checklist.xlsx             — Post-checklist report (all dev tasks)
   hecvat-remediation.patch                      — git apply-able patch (AA fixes)
   hecvat-remediation-manual.md                  — Manual action items (BB items)
   hecvat-improvement-developer-checklist.yaml   — Developer task list (TT tasks)
-  hecvat-summary.md                             — Human-readable summary
+  hecvat-summary.md                             — Human-readable summary with 3-tier scoring
   assessment-current.json                       — Machine-readable current assessment
-  assessment-projected.json                     — Machine-readable projected assessment
+  assessment-post-patch.json                    — Machine-readable post-patch assessment
+  assessment-post-checklist.json                — Machine-readable post-checklist assessment
 ```
 
 ## Resources
