@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.0] - 2026-02-16
+
+### Changed
+- **3-tier scoring model**: Replaced single "projected" assessment with two separate projections:
+  - **Post-patch** (`assessment-post-patch.json`): Only questions fixable by `git apply` — represents minutes of effort
+  - **Post-checklist** (`assessment-post-checklist.json`): All developer checklist tasks completed — represents hours/days of effort
+- Output file naming: `assessment-projected.json` → split into `assessment-post-patch.json` + `assessment-post-checklist.json`
+- Output file naming: `hecvat-report-projected.xlsx` → split into `hecvat-report-post-patch.xlsx` + `hecvat-report-post-checklist.xlsx`
+- Summary now shows 3-tier scoring table (current / post-patch / post-checklist) instead of 2-tier
+- Checklist metadata includes `post_patch_score` and `post_checklist_score` instead of single `projected_score`
+
+### Why
+- Previous "projected" score conflated auto-patchable fixes (minutes) with documentation tasks (hours/days), making the projected score misleadingly optimistic for the `git apply` use case
+
 ## [3.0.0] - 2026-02-15
 
 ### Fixed
